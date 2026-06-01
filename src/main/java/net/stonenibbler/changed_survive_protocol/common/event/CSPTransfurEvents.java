@@ -50,6 +50,10 @@ public final class CSPTransfurEvents {
             return;
         }
 
+        if (player.isDeadOrDying()) {
+            return;
+        }
+
         CSPCapabilities.get(player).ifPresent(data -> {
             data.setLucidityActive(false);
             data.setUnstableLatex(false);

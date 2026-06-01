@@ -38,6 +38,8 @@ public class CSPPlayerData {
         settledStrainId = other.settledStrainId;
         feralSelfUuid = other.feralSelfUuid;
         collapseCount = other.collapseCount;
+        lastExposureGameTime = other.lastExposureGameTime;
+        lastExposureSource = other.lastExposureSource;
     }
 
     public void reset() {

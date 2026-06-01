@@ -50,6 +50,7 @@ public class ChangedSurviveProtocol {
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> CSPClientEvents.register(modBus));
 
         MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.entity.Entity.class, CSPPlayerEvents::attachCapabilities);
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPPlayerEvents::onPlayerDeath);
         MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerClone);
         MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerLoggedIn);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, CSPPlayerEvents::onPlayerRespawn);

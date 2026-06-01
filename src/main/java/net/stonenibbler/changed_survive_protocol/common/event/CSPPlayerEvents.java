@@ -6,6 +6,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -16,7 +17,13 @@ import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
 import net.stonenibbler.changed_survive_protocol.common.latex.LatexStrandManager;
 import net.stonenibbler.changed_survive_protocol.common.network.CSPNetwork;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public final class CSPPlayerEvents {
+    private static final Map<UUID, CSPPlayerData> DEATH_SNAPSHOTS = new ConcurrentHashMap<>();
+
     private CSPPlayerEvents() {
     }
 
@@ -26,9 +33,31 @@ public final class CSPPlayerEvents {
 
     public static void onPlayerClone(PlayerEvent.Clone event) {
         event.getOriginal().reviveCaps();
-        CSPCapabilities.get(event.getOriginal()).ifPresent(oldData ->
-                CSPCapabilities.get(event.getEntity()).ifPresent(newData -> newData.copyFrom(oldData)));
-        event.getOriginal().invalidateCaps();
+        try {
+            CSPCapabilities.get(event.getEntity()).ifPresent(newData -> {
+                CSPPlayerData deathSnapshot = event.isWasDeath() ? DEATH_SNAPSHOTS.remove(event.getOriginal().getUUID()) : null;
+                if (deathSnapshot != null) {
+                    newData.copyFrom(deathSnapshot);
+                    return;
+                }
+
+                CSPCapabilities.get(event.getOriginal()).ifPresent(newData::copyFrom);
+            });
+        } finally {
+            event.getOriginal().invalidateCaps();
+        }
+    }
+
+    public static void onPlayerDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        CSPCapabilities.get(player).ifPresent(data -> {
+            CSPPlayerData snapshot = new CSPPlayerData();
+            snapshot.copyFrom(data);
+            DEATH_SNAPSHOTS.put(player.getUUID(), snapshot);
+        });
     }
 
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -165,7 +194,7 @@ public final class CSPPlayerEvents {
         boolean dirty = false;
 
         if (!shouldDrainLucidity(player)) {
-            dirty |= CSPLucidityEvents.tickNearLatex(player, data);
+            dirty |= CSPLucidityEvents.tickLatexEnvironment(player, data, 0.0D);
             return dirty;
         }
 
@@ -183,11 +212,8 @@ public final class CSPPlayerEvents {
 
         if (player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() == 0) {
             double lucidityDrain = data.isStabilizedLatex() ? CSPConfig.COMMON.stabilizedLucidityDrain.get() : CSPConfig.COMMON.unstableLucidityDrain.get() * data.getLucidityDrainMultiplier();
-            data.addLucidity(-lucidityDrain);
-            dirty = true;
+            dirty |= CSPLucidityEvents.tickLatexEnvironment(player, data, lucidityDrain);
         }
-
-        dirty |= CSPLucidityEvents.tickNearLatex(player, data);
 
         return dirty;
     }
