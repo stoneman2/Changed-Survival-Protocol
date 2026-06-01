@@ -82,6 +82,7 @@ public final class CSPConfig {
 
         public final ForgeConfigSpec.BooleanValue reworkGrabEntityControls;
         public final ForgeConfigSpec.BooleanValue latexMobsAttackDifferentLatexPlayers;
+        public final ForgeConfigSpec.BooleanValue changedLatexMobsIgnoreNaturalSpawnLight;
         public final ForgeConfigSpec.BooleanValue debugLatexHeartSpawnMessages;
 
         private Common(ForgeConfigSpec.Builder builder) {
@@ -152,6 +153,7 @@ public final class CSPConfig {
             builder.push("misc");
             reworkGrabEntityControls = builder.comment("If true, Changed Grab Entity controls are reworked: left click absorbs/assimilates, right click replicates.").define("reworkGrabEntityControls", true);
             latexMobsAttackDifferentLatexPlayers = builder.comment("If true, Changed latex mobs can target transfurred players unless they share/friend the same latex type.").define("latexMobsAttackDifferentLatexPlayers", true);
+            changedLatexMobsIgnoreNaturalSpawnLight = builder.comment("If true, natural Changed latex mob spawns ignore the vanilla monster light check, allowing daytime or lit-area spawns while keeping biome, ground, difficulty, and collision rules.").define("changedLatexMobsIgnoreNaturalSpawnLight", false);
             builder.pop();
 
             builder.push("debug");
