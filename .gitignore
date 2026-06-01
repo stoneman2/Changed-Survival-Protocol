@@ -8,7 +8,6 @@ run-data
 run-server
 src/generated
 src/test
-.bat
 
 # Ignore Intellij IDEA files
 /.idea/
