@@ -214,13 +214,10 @@ public class LatexCentrifugeBlockEntity extends BaseContainerBlockEntity impleme
             if (!disinfectant.is(CSPItems.DISINFECTANT_SPRAY.get())) {
                 return null;
             }
-            ItemStack result = CSPStrainItems.withStrain(new ItemStack(CSPItems.STRAND_CURE_DOSE.get(), 3), strainId);
+            ItemStack result = CSPStrainItems.withStrain(new ItemStack(CSPItems.STRAND_CURE_DOSE.get()), strainId);
             return canAcceptOutput(output, result) ? new Recipe(1, result) : null;
         }
         if (additive.is(CSPItems.STABILIZING_REAGENT.get())) {
-            if (!disinfectant.isEmpty()) {
-                return null;
-            }
             ItemStack result = CSPStrainItems.withAttunement(CSPStrainItems.withStrain(new ItemStack(CSPItems.CULTURED_LATEX_STRAND.get()), strainId), 0.0D);
             return canAcceptOutput(output, result) ? new Recipe(2, result) : null;
         }
