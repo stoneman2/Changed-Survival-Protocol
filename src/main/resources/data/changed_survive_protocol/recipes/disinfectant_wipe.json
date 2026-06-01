@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:paper" },
+    { "item": "minecraft:water_bucket" }
+  ],
+  "result": {
+    "item": "changed_survive_protocol:disinfectant_wipe",
+    "count": 4
+  }
+}

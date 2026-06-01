@@ -1,0 +1,24 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "net.stonenibbler.changed_survive_protocol.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "changed_survive_protocol.refmap.json",
+  "mixins": [
+    "ChangedGameRulesMixin",
+    "ChangedMicroscopeBlockEntityMixin",
+    "ChangedEntityTargetingMixin",
+    "GrabEntityAbilityInstanceMixin",
+    "LatexCoverStateMixin",
+    "ProcessTransfurMixin",
+    "SpreadingLatexSubtypeMixin",
+    "SpreadingLatexTypeMixin",
+    "TransfurVariantBuilderMixin"
+  ],
+  "client": [
+    "client.TransfurProgressOverlayMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

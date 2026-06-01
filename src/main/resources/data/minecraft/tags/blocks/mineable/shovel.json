@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "changed_survive_protocol:dark_latex_heart",
+    "changed_survive_protocol:white_latex_heart",
+    "changed_survive_protocol:dark_latex_node",
+    "changed_survive_protocol:white_latex_node"
+  ]
+}

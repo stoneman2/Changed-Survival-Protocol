@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "changed:latex_base" },
+    { "item": "minecraft:amethyst_shard" },
+    { "item": "minecraft:glowstone_dust" }
+  ],
+  "result": {
+    "item": "changed_survive_protocol:stabilizing_reagent"
+  }
+}

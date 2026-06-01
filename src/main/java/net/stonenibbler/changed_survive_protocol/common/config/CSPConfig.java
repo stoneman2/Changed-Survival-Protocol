@@ -1,0 +1,204 @@
+package net.stonenibbler.changed_survive_protocol.common.config;
+
+import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
+
+public final class CSPConfig {
+    public static final ForgeConfigSpec COMMON_SPEC;
+    public static final Common COMMON;
+    public static final ForgeConfigSpec CLIENT_SPEC;
+    public static final Client CLIENT;
+
+    static {
+        ForgeConfigSpec.Builder commonBuilder = new ForgeConfigSpec.Builder();
+        COMMON = new Common(commonBuilder);
+        COMMON_SPEC = commonBuilder.build();
+
+        ForgeConfigSpec.Builder clientBuilder = new ForgeConfigSpec.Builder();
+        CLIENT = new Client(clientBuilder);
+        CLIENT_SPEC = clientBuilder.build();
+    }
+
+    private CSPConfig() {
+    }
+
+    public static void register(ModLoadingContext context) {
+        context.registerConfig(ModConfig.Type.COMMON, COMMON_SPEC);
+        context.registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC);
+    }
+
+    public static final class Common {
+        public final ForgeConfigSpec.DoubleValue waterCoverageWashPerTick;
+        public final ForgeConfigSpec.DoubleValue rainCoverageWashPerTick;
+        public final ForgeConfigSpec.IntValue passiveCoverageDecayIntervalTicks;
+        public final ForgeConfigSpec.DoubleValue passiveCoverageDecayAmount;
+        public final ForgeConfigSpec.DoubleValue coverageInfectionThreshold;
+        public final ForgeConfigSpec.DoubleValue infectionStartPercent;
+        public final ForgeConfigSpec.IntValue infectionGrowthIntervalTicks;
+        public final ForgeConfigSpec.DoubleValue infectionGrowthPerInterval;
+        public final ForgeConfigSpec.DoubleValue infectionFromExtraCoverageMultiplier;
+
+        public final ForgeConfigSpec.DoubleValue disinfectantWipeCoverageRemoval;
+        public final ForgeConfigSpec.DoubleValue disinfectantSprayCoverageRemoval;
+        public final ForgeConfigSpec.IntValue inhibitorTicks;
+        public final ForgeConfigSpec.DoubleValue inhibitorInfectionRemoval;
+        public final ForgeConfigSpec.DoubleValue sampleExtractionDamage;
+        public final ForgeConfigSpec.DoubleValue sampleExtractionMinHealth;
+        public final ForgeConfigSpec.DoubleValue sampleExtractionInfectionRemoval;
+        public final ForgeConfigSpec.DoubleValue cureDoseInfectionRemoval;
+        public final ForgeConfigSpec.IntValue cureDoseSuppressantTicks;
+
+        public final ForgeConfigSpec.IntValue microscopeProcessTimeTicks;
+
+        public final ForgeConfigSpec.DoubleValue strongLatexHitCoverage;
+        public final ForgeConfigSpec.DoubleValue weakLatexHitCoverage;
+        public final ForgeConfigSpec.DoubleValue transfurProgressCoverageMultiplier;
+        public final ForgeConfigSpec.DoubleValue absorptionCoverageBonus;
+        public final ForgeConfigSpec.DoubleValue grabCoverageMultiplier;
+        public final ForgeConfigSpec.DoubleValue minimumGrabCoverage;
+        public final ForgeConfigSpec.DoubleValue fallbackLatexHitCoverageMultiplier;
+        public final ForgeConfigSpec.DoubleValue minimumFallbackLatexHitCoverage;
+        public final ForgeConfigSpec.DoubleValue immediateHazardCoverage;
+
+        public final ForgeConfigSpec.IntValue latexNeedIntervalTicks;
+        public final ForgeConfigSpec.DoubleValue stabilizedLucidityDrain;
+        public final ForgeConfigSpec.DoubleValue unstableLucidityDrain;
+        public final ForgeConfigSpec.BooleanValue creativeModeLucidityDrain;
+        public final ForgeConfigSpec.DoubleValue maxUnstableLucidityMultiplier;
+        public final ForgeConfigSpec.IntValue unstableTicksForMaxMultiplier;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryPerFoodNutrition;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryPerFoodSaturation;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexSmall;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexMedium;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexLarge;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryAquaticUnderwater;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromLatexNestSleep;
+        public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromAssimilation;
+        public final ForgeConfigSpec.DoubleValue culturedStrandNestAttunement;
+        public final ForgeConfigSpec.DoubleValue culturedStrandAssimilationAttunement;
+        public final ForgeConfigSpec.DoubleValue culturedStrandPassiveAttunement;
+        public final ForgeConfigSpec.DoubleValue stabilizationRequiredLucidity;
+
+        public final ForgeConfigSpec.BooleanValue reworkGrabEntityControls;
+        public final ForgeConfigSpec.BooleanValue latexMobsAttackDifferentLatexPlayers;
+        public final ForgeConfigSpec.BooleanValue debugLatexHeartSpawnMessages;
+
+        private Common(ForgeConfigSpec.Builder builder) {
+            builder.push("coverage");
+            waterCoverageWashPerTick = builder.comment("Coverage removed per tick while the player is in water.").defineInRange("waterCoverageWashPerTick", 0.35D, 0.0D, 100.0D);
+            rainCoverageWashPerTick = builder.comment("Coverage removed per tick while the player is in rain or bubbles.").defineInRange("rainCoverageWashPerTick", 0.12D, 0.0D, 100.0D);
+            passiveCoverageDecayIntervalTicks = builder.comment("How often passive coverage decay runs. 20 ticks = 1 second.").defineInRange("passiveCoverageDecayIntervalTicks", 40, 1, 20 * 60 * 10);
+            passiveCoverageDecayAmount = builder.comment("Coverage removed on each passive decay tick.").defineInRange("passiveCoverageDecayAmount", 0.25D, 0.0D, 100.0D);
+            coverageInfectionThreshold = builder.comment("Coverage required to begin infection. Default is 100: fully coated means infected.").defineInRange("coverageInfectionThreshold", 100.0D, 1.0D, 100.0D);
+            infectionStartPercent = builder.comment("Infection percent assigned when coverage reaches the infection threshold.").defineInRange("infectionStartPercent", 1.0D, 0.0D, 100.0D);
+            builder.pop();
+
+            builder.push("infection");
+            infectionGrowthIntervalTicks = builder.comment("How often infection grows after it has started. 20 ticks = 1 second.").defineInRange("infectionGrowthIntervalTicks", 40, 1, 20 * 60 * 10);
+            infectionGrowthPerInterval = builder.comment("Infection gained each growth interval while not suppressed.").defineInRange("infectionGrowthPerInterval", 0.10D, 0.0D, 100.0D);
+            infectionFromExtraCoverageMultiplier = builder.comment("When already infected, extra exposure is converted directly into infection using this multiplier.").defineInRange("infectionFromExtraCoverageMultiplier", 0.45D, 0.0D, 100.0D);
+            builder.pop();
+
+            builder.push("treatment");
+            disinfectantWipeCoverageRemoval = builder.comment("Coverage removed by one disinfectant wipe.").defineInRange("disinfectantWipeCoverageRemoval", 25.0D, 0.0D, 100.0D);
+            disinfectantSprayCoverageRemoval = builder.comment("Coverage removed by one disinfectant spray.").defineInRange("disinfectantSprayCoverageRemoval", 60.0D, 0.0D, 100.0D);
+            inhibitorTicks = builder.comment("Ticks of infection suppression granted by latex inhibitor. 20 ticks = 1 second.").defineInRange("inhibitorTicks", 6000, 0, 20 * 60 * 60);
+            inhibitorInfectionRemoval = builder.comment("Infection removed by latex inhibitor.").defineInRange("inhibitorInfectionRemoval", 3.0D, 0.0D, 100.0D);
+            sampleExtractionDamage = builder.comment("Damage dealt by extracting an infected human sample with the sampling scalpel.").defineInRange("sampleExtractionDamage", 6.0D, 0.0D, 100.0D);
+            sampleExtractionMinHealth = builder.comment("Sample extraction refuses to reduce the player below this health.").defineInRange("sampleExtractionMinHealth", 2.0D, 0.0D, 100.0D);
+            sampleExtractionInfectionRemoval = builder.comment("Infection removed by cutting out a raw latex sample.").defineInRange("sampleExtractionInfectionRemoval", 2.0D, 0.0D, 100.0D);
+            cureDoseInfectionRemoval = builder.comment("Infection removed by consuming one matching strand cure dose.").defineInRange("cureDoseInfectionRemoval", 25.0D, 0.0D, 100.0D);
+            cureDoseSuppressantTicks = builder.comment("Ticks of infection suppression granted by one matching strand cure dose.").defineInRange("cureDoseSuppressantTicks", 1200, 0, 20 * 60 * 60);
+            builder.pop();
+
+            builder.push("machines");
+            microscopeProcessTimeTicks = builder.comment("Ticks needed for a microscope to identify one latex sample. 20 ticks = 1 second.").defineInRange("microscopeProcessTimeTicks", 900, 1, 20 * 60 * 60);
+            builder.pop();
+
+            builder.push("exposure");
+            strongLatexHitCoverage = builder.comment("Coverage added by a strong Changed latex hit.").defineInRange("strongLatexHitCoverage", 8.0D, 0.0D, 100.0D);
+            weakLatexHitCoverage = builder.comment("Coverage added by a weak Changed latex hit.").defineInRange("weakLatexHitCoverage", 4.0D, 0.0D, 100.0D);
+            transfurProgressCoverageMultiplier = builder.comment("Coverage added per point of Changed transfur progress requested by the source.").defineInRange("transfurProgressCoverageMultiplier", 1.25D, 0.0D, 100.0D);
+            absorptionCoverageBonus = builder.comment("Extra coverage for absorption-style latex attacks.").defineInRange("absorptionCoverageBonus", 3.0D, 0.0D, 100.0D);
+            grabCoverageMultiplier = builder.comment("Multiplier for passive coverage from Changed grab progression.").defineInRange("grabCoverageMultiplier", 0.08D, 0.0D, 100.0D);
+            minimumGrabCoverage = builder.comment("Minimum coverage applied by grab progression ticks.").defineInRange("minimumGrabCoverage", 0.35D, 0.0D, 100.0D);
+            fallbackLatexHitCoverageMultiplier = builder.comment("Coverage added from generic latex hurt fallback per damage point.").defineInRange("fallbackLatexHitCoverageMultiplier", 1.5D, 0.0D, 100.0D);
+            minimumFallbackLatexHitCoverage = builder.comment("Minimum coverage added by generic latex hurt fallback.").defineInRange("minimumFallbackLatexHitCoverage", 2.0D, 0.0D, 100.0D);
+            immediateHazardCoverage = builder.comment("Coverage added by immediate Changed hazards such as syringes, flasks, puddles, and latex food.").defineInRange("immediateHazardCoverage", 15.0D, 0.0D, 100.0D);
+            builder.pop();
+
+            builder.push("latexNeeds");
+            latexNeedIntervalTicks = builder.comment("How often lucidity checks tick. 20 ticks = 1 second.").defineInRange("latexNeedIntervalTicks", 40, 1, 20 * 60 * 10);
+            stabilizedLucidityDrain = builder.comment("Lucidity drain per interval while stabilized.").defineInRange("stabilizedLucidityDrain", 0.01D, 0.0D, 100.0D);
+            unstableLucidityDrain = builder.comment("Base lucidity drain per interval while unstable.").defineInRange("unstableLucidityDrain", 0.08D, 0.0D, 100.0D);
+            creativeModeLucidityDrain = builder.comment("If true, creative-mode latex players still lose lucidity. If false, creative mode freezes lucidity drain.").define("creativeModeLucidityDrain", false);
+            maxUnstableLucidityMultiplier = builder.comment("Lucidity drains faster as instability increases. This is the maximum multiplier.").defineInRange("maxUnstableLucidityMultiplier", 4.0D, 1.0D, 100.0D);
+            unstableTicksForMaxMultiplier = builder.comment("How many ticks does it take for lucidity to reach the maximum drain multiplier.").defineInRange("unstableTicksForMaxMultiplier", 24000, 1, 20 * 60 * 60 * 24);
+            lucidityRecoveryPerFoodNutrition = builder.comment("Lucidity restored when a latex player finishes eating food, per nutrition point.").defineInRange("lucidityRecoveryPerFoodNutrition", 1.2D, 0.0D, 100.0D);
+            lucidityRecoveryPerFoodSaturation = builder.comment("Lucidity restored when a latex player finishes eating food, per saturation modifier point.").defineInRange("lucidityRecoveryPerFoodSaturation", 3.0D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexSmall = builder.comment("Lucidity recovered per latex need interval near a small amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexSmall", 0.3D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexMedium = builder.comment("Lucidity recovered per latex need interval near a moderate amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexMedium", 0.5D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexLarge = builder.comment("Lucidity recovered per latex need interval near a dense friendly latex nest.").defineInRange("lucidityRecoveryNearLatexLarge", 0.75D, 0.0D, 100.0D);
+            lucidityRecoveryAquaticUnderwater = builder.comment("Lucidity recovered per latex need interval while an aquatic latex form is underwater.").defineInRange("lucidityRecoveryAquaticUnderwater", 0.5D, 0.0D, 100.0D);
+            lucidityRecoveryFromLatexNestSleep = builder.comment("Lucidity restored when waking after sleeping long enough in a friendly latex nest.").defineInRange("lucidityRecoveryFromLatexNestSleep", 25.0D, 0.0D, 100.0D);
+            lucidityRecoveryFromAssimilation = builder.comment("Lucidity restored when a latex player successfully assimilates/transfurs another entity.").defineInRange("lucidityRecoveryFromAssimilation", 20.0D, 0.0D, 100.0D);
+            culturedStrandNestAttunement = builder.comment("Attunement added to a carried matching cultured strand when sleeping in a friendly latex nest.").defineInRange("culturedStrandNestAttunement", 40.0D, 0.0D, 100.0D);
+            culturedStrandAssimilationAttunement = builder.comment("Attunement added to a carried matching cultured strand after successful assimilation.").defineInRange("culturedStrandAssimilationAttunement", 25.0D, 0.0D, 100.0D);
+            culturedStrandPassiveAttunement = builder.comment("Attunement added once per minute to a carried matching cultured strand while lucid near friendly latex.").defineInRange("culturedStrandPassiveAttunement", 1.0D, 0.0D, 100.0D);
+            stabilizationRequiredLucidity = builder.comment("Minimum lucidity required to consume a stabilization dose.").defineInRange("stabilizationRequiredLucidity", 80.0D, 0.0D, 100.0D);
+            builder.pop();
+
+            builder.push("misc");
+            reworkGrabEntityControls = builder.comment("If true, Changed Grab Entity controls are reworked: left click absorbs/assimilates, right click replicates.").define("reworkGrabEntityControls", true);
+            latexMobsAttackDifferentLatexPlayers = builder.comment("If true, Changed latex mobs can target transfurred players unless they share/friend the same latex type.").define("latexMobsAttackDifferentLatexPlayers", true);
+            builder.pop();
+
+            builder.push("debug");
+            debugLatexHeartSpawnMessages = builder.comment("If true, sends a clickable chat message whenever a latex heart successfully spawns.").define("latexHeartSpawnMessages", false);
+            builder.pop();
+        }
+    }
+
+    public static final class Client {
+        public final ForgeConfigSpec.BooleanValue infectionOverlayEnabled;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayLowEndPercent;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayCriticalStartPercent;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayLowMaxAlpha;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayMidMaxAlpha;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayCriticalAlpha;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayPulseAlpha;
+        public final ForgeConfigSpec.DoubleValue infectionOverlayFinalWashAlpha;
+
+        public final ForgeConfigSpec.BooleanValue sharedStatusMeterEnabled;
+        public final ForgeConfigSpec.DoubleValue coverageVignetteMaxAlpha;
+        public final ForgeConfigSpec.DoubleValue lowLucidityVignetteMaxAlpha;
+
+        public final ForgeConfigSpec.BooleanValue darkLatexMaskOverlayEnabled;
+        public final ForgeConfigSpec.DoubleValue darkLatexMaskOverlayAlpha;
+
+        private Client(ForgeConfigSpec.Builder builder) {
+            builder.push("infectionOverlay");
+            infectionOverlayEnabled = builder.define("infectionOverlayEnabled", true);
+            infectionOverlayLowEndPercent = builder.comment("At this infection percent, the goo outline becomes clearly visible.").defineInRange("visibleAtPercent", 25.0D, 0.0D, 100.0D);
+            infectionOverlayCriticalStartPercent = builder.comment("At this infection percent, the goo outline is nearly full and the final color wash begins.").defineInRange("finalWashStartPercent", 90.0D, 0.0D, 100.0D);
+            infectionOverlayLowMaxAlpha = builder.comment("Goo outline alpha at visibleAtPercent.").defineInRange("visibleAlpha", 0.20D, 0.0D, 1.0D);
+            infectionOverlayMidMaxAlpha = builder.comment("Goo outline alpha just before finalWashStartPercent.").defineInRange("midAlpha", 0.82D, 0.0D, 1.0D);
+            infectionOverlayCriticalAlpha = builder.comment("Goo outline alpha from finalWashStartPercent to full infection.").defineInRange("criticalAlpha", 0.95D, 0.0D, 1.0D);
+            infectionOverlayPulseAlpha = builder.comment("Extra pulsing alpha added as infection becomes severe.").defineInRange("pulseAlpha", 0.04D, 0.0D, 1.0D);
+            infectionOverlayFinalWashAlpha = builder.comment("Maximum screen wash during the final infection surge.").defineInRange("finalWhiteWashAlpha", 0.88D, 0.0D, 1.0D);
+            builder.pop();
+
+            builder.push("meters");
+            sharedStatusMeterEnabled = builder.comment("If true, one Changed-style meter shows coverage before infection, infection while infected, and lucidity while latex.").define("sharedStatusMeterEnabled", true);
+            coverageVignetteMaxAlpha = builder.comment("Maximum coverage vignette alpha while human. Keep this low; high values are rough on the eyes.").defineInRange("coverageVignetteMaxAlpha", 0.16D, 0.0D, 1.0D);
+            lowLucidityVignetteMaxAlpha = builder.comment("Maximum vignette alpha as latex lucidity gets dangerously low.").defineInRange("lowLucidityVignetteMaxAlpha", 0.24D, 0.0D, 1.0D);
+            builder.pop();
+
+            builder.push("darkLatexMaskOverlay");
+            darkLatexMaskOverlayEnabled = builder.comment("If true, dark-latex players may show the built-in latex mask overlay.").define("enabled", false);
+            darkLatexMaskOverlayAlpha = builder.comment("Mask overlay alpha.").defineInRange("alpha", 0.65D, 0.0D, 1.0D);
+            builder.pop();
+        }
+    }
+}

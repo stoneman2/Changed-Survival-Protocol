@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "changed_survive_protocol:disinfectant_wipe" },
+    { "item": "minecraft:glass_bottle" },
+    { "item": "minecraft:redstone" }
+  ],
+  "result": {
+    "item": "changed_survive_protocol:disinfectant_spray"
+  }
+}

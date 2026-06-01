@@ -1,0 +1,31 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="changed_survive_protocol"
+version="${file.jarVersion}"
+displayName="Changed: Survive Protocol"
+authors="stonenibbler"
+description='''Survival-focused infection, coverage, lucidity, and latex infestation systems for Changed: Minecraft Mod.'''
+
+[[dependencies.changed_survive_protocol]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47.4.0,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.changed_survive_protocol]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1]"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.changed_survive_protocol]]
+    modId="changed"
+    mandatory=true
+    versionRange="[0.15.4,)"
+    ordering="AFTER"
+    side="BOTH"

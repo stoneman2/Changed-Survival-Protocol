@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "protected=false": { "model": "changed_survive_protocol:block/white_latex_heart" },
+    "protected=true": { "model": "changed_survive_protocol:block/white_latex_heart" }
+  }
+}
