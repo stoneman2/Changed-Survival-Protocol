@@ -1,13 +1,13 @@
 modLoader="javafml"
 loaderVersion="[47,)"
-license="MIT"
+license="CC-BY-ND"
 
 [[mods]]
 modId="changed_survive_protocol"
 version="${file.jarVersion}"
 displayName="Changed: Survive Protocol"
 authors="stonenibbler"
-description='''Survival-focused infection, coverage, lucidity, and latex infestation systems for Changed: Minecraft Mod.'''
+description='''Survival-focused systems for Changed: Minecraft Mod.'''
 
 [[dependencies.changed_survive_protocol]]
     modId="forge"
