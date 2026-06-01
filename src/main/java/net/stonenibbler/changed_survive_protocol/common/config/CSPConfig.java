@@ -73,6 +73,7 @@ public final class CSPConfig {
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexMedium;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexLarge;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryAquaticUnderwater;
+        public final ForgeConfigSpec.DoubleValue lucidityNearbyLatexMaxDrainReduction;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromLatexNestSleep;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromAssimilation;
         public final ForgeConfigSpec.DoubleValue culturedStrandNestAttunement;
@@ -83,33 +84,37 @@ public final class CSPConfig {
         public final ForgeConfigSpec.BooleanValue reworkGrabEntityControls;
         public final ForgeConfigSpec.BooleanValue latexMobsAttackDifferentLatexPlayers;
         public final ForgeConfigSpec.BooleanValue changedLatexMobsIgnoreNaturalSpawnLight;
+        public final ForgeConfigSpec.DoubleValue changedLatexMobsDaylightSpawnChance;
+        public final ForgeConfigSpec.BooleanValue changedLatexMobsDaylightSpawnIncludesAddons;
+        public final ForgeConfigSpec.IntValue changedLatexMobsNaturalSpawnLocalCap;
+        public final ForgeConfigSpec.IntValue changedLatexMobsNaturalSpawnLocalCapRadius;
         public final ForgeConfigSpec.BooleanValue debugLatexHeartSpawnMessages;
 
         private Common(ForgeConfigSpec.Builder builder) {
             builder.push("coverage");
-            waterCoverageWashPerTick = builder.comment("Coverage removed per tick while the player is in water.").defineInRange("waterCoverageWashPerTick", 0.35D, 0.0D, 100.0D);
-            rainCoverageWashPerTick = builder.comment("Coverage removed per tick while the player is in rain or bubbles.").defineInRange("rainCoverageWashPerTick", 0.12D, 0.0D, 100.0D);
+            waterCoverageWashPerTick = builder.comment("Coverage removed per tick while the player is in water.").defineInRange("waterCoverageWashPerTick", 0.15D, 0.0D, 100.0D);
+            rainCoverageWashPerTick = builder.comment("Coverage removed per tick while the player is in rain or bubbles.").defineInRange("rainCoverageWashPerTick", 0.1D, 0.0D, 100.0D);
             passiveCoverageDecayIntervalTicks = builder.comment("How often passive coverage decay runs. 20 ticks = 1 second.").defineInRange("passiveCoverageDecayIntervalTicks", 40, 1, 20 * 60 * 10);
-            passiveCoverageDecayAmount = builder.comment("Coverage removed on each passive decay tick.").defineInRange("passiveCoverageDecayAmount", 0.25D, 0.0D, 100.0D);
+            passiveCoverageDecayAmount = builder.comment("Coverage removed on each passive decay tick.").defineInRange("passiveCoverageDecayAmount", 0.05D, 0.0D, 100.0D);
             coverageInfectionThreshold = builder.comment("Coverage required to begin infection. Default is 100: fully coated means infected.").defineInRange("coverageInfectionThreshold", 100.0D, 1.0D, 100.0D);
             infectionStartPercent = builder.comment("Infection percent assigned when coverage reaches the infection threshold.").defineInRange("infectionStartPercent", 1.0D, 0.0D, 100.0D);
             builder.pop();
 
             builder.push("infection");
             infectionGrowthIntervalTicks = builder.comment("How often infection grows after it has started. 20 ticks = 1 second.").defineInRange("infectionGrowthIntervalTicks", 40, 1, 20 * 60 * 10);
-            infectionGrowthPerInterval = builder.comment("Infection gained each growth interval while not suppressed.").defineInRange("infectionGrowthPerInterval", 0.10D, 0.0D, 100.0D);
+            infectionGrowthPerInterval = builder.comment("Infection gained each growth interval while not suppressed.").defineInRange("infectionGrowthPerInterval", 0.2D, 0.0D, 100.0D);
             infectionFromExtraCoverageMultiplier = builder.comment("When already infected, extra exposure is converted directly into infection using this multiplier.").defineInRange("infectionFromExtraCoverageMultiplier", 0.45D, 0.0D, 100.0D);
             builder.pop();
 
             builder.push("treatment");
-            disinfectantWipeCoverageRemoval = builder.comment("Coverage removed by one disinfectant wipe.").defineInRange("disinfectantWipeCoverageRemoval", 25.0D, 0.0D, 100.0D);
-            disinfectantSprayCoverageRemoval = builder.comment("Coverage removed by one disinfectant spray.").defineInRange("disinfectantSprayCoverageRemoval", 60.0D, 0.0D, 100.0D);
+            disinfectantWipeCoverageRemoval = builder.comment("Coverage removed by one disinfectant wipe.").defineInRange("disinfectantWipeCoverageRemoval", 5.0D, 0.0D, 100.0D);
+            disinfectantSprayCoverageRemoval = builder.comment("Coverage removed by one disinfectant spray.").defineInRange("disinfectantSprayCoverageRemoval", 10.0D, 0.0D, 100.0D);
             inhibitorTicks = builder.comment("Ticks of infection suppression granted by latex inhibitor. 20 ticks = 1 second.").defineInRange("inhibitorTicks", 6000, 0, 20 * 60 * 60);
             inhibitorInfectionRemoval = builder.comment("Infection removed by latex inhibitor.").defineInRange("inhibitorInfectionRemoval", 3.0D, 0.0D, 100.0D);
             sampleExtractionDamage = builder.comment("Damage dealt by extracting an infected human sample with the sampling scalpel.").defineInRange("sampleExtractionDamage", 6.0D, 0.0D, 100.0D);
             sampleExtractionMinHealth = builder.comment("Sample extraction refuses to reduce the player below this health.").defineInRange("sampleExtractionMinHealth", 2.0D, 0.0D, 100.0D);
             sampleExtractionInfectionRemoval = builder.comment("Infection removed by cutting out a raw latex sample.").defineInRange("sampleExtractionInfectionRemoval", 2.0D, 0.0D, 100.0D);
-            cureDoseInfectionRemoval = builder.comment("Infection removed by consuming one matching strand cure dose.").defineInRange("cureDoseInfectionRemoval", 25.0D, 0.0D, 100.0D);
+            cureDoseInfectionRemoval = builder.comment("Infection removed by consuming one matching strand cure dose.").defineInRange("cureDoseInfectionRemoval", 100.0D, 0.0D, 100.0D);
             cureDoseSuppressantTicks = builder.comment("Ticks of infection suppression granted by one matching strand cure dose.").defineInRange("cureDoseSuppressantTicks", 1200, 0, 20 * 60 * 60);
             builder.pop();
 
@@ -131,17 +136,18 @@ public final class CSPConfig {
 
             builder.push("latexNeeds");
             latexNeedIntervalTicks = builder.comment("How often lucidity checks tick. 20 ticks = 1 second.").defineInRange("latexNeedIntervalTicks", 40, 1, 20 * 60 * 10);
-            stabilizedLucidityDrain = builder.comment("Lucidity drain per interval while stabilized.").defineInRange("stabilizedLucidityDrain", 0.01D, 0.0D, 100.0D);
-            unstableLucidityDrain = builder.comment("Base lucidity drain per interval while unstable.").defineInRange("unstableLucidityDrain", 0.08D, 0.0D, 100.0D);
+            stabilizedLucidityDrain = builder.comment("Lucidity drain per interval while stabilized.").defineInRange("stabilizedLucidityDrain", 0.0D, 0.0D, 100.0D);
+            unstableLucidityDrain = builder.comment("Base lucidity drain per interval while unstable.").defineInRange("unstableLucidityDrain", 0.1D, 0.0D, 100.0D);
             creativeModeLucidityDrain = builder.comment("If true, creative-mode latex players still lose lucidity. If false, creative mode freezes lucidity drain.").define("creativeModeLucidityDrain", false);
-            maxUnstableLucidityMultiplier = builder.comment("Lucidity drains faster as instability increases. This is the maximum multiplier.").defineInRange("maxUnstableLucidityMultiplier", 4.0D, 1.0D, 100.0D);
+            maxUnstableLucidityMultiplier = builder.comment("Lucidity drains faster as instability increases. This is the maximum multiplier.").defineInRange("maxUnstableLucidityMultiplier", 7.5D, 1.0D, 100.0D);
             unstableTicksForMaxMultiplier = builder.comment("How many ticks does it take for lucidity to reach the maximum drain multiplier.").defineInRange("unstableTicksForMaxMultiplier", 24000, 1, 20 * 60 * 60 * 24);
-            lucidityRecoveryPerFoodNutrition = builder.comment("Lucidity restored when a latex player finishes eating food, per nutrition point.").defineInRange("lucidityRecoveryPerFoodNutrition", 1.2D, 0.0D, 100.0D);
+            lucidityRecoveryPerFoodNutrition = builder.comment("Lucidity restored when a latex player finishes eating food, per nutrition point.").defineInRange("lucidityRecoveryPerFoodNutrition", 0.4D, 0.0D, 100.0D);
             lucidityRecoveryPerFoodSaturation = builder.comment("Lucidity restored when a latex player finishes eating food, per saturation modifier point.").defineInRange("lucidityRecoveryPerFoodSaturation", 3.0D, 0.0D, 100.0D);
-            lucidityRecoveryNearLatexSmall = builder.comment("Lucidity recovered per latex need interval near a small amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexSmall", 0.3D, 0.0D, 100.0D);
-            lucidityRecoveryNearLatexMedium = builder.comment("Lucidity recovered per latex need interval near a moderate amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexMedium", 0.5D, 0.0D, 100.0D);
-            lucidityRecoveryNearLatexLarge = builder.comment("Lucidity recovered per latex need interval near a dense friendly latex nest.").defineInRange("lucidityRecoveryNearLatexLarge", 0.75D, 0.0D, 100.0D);
-            lucidityRecoveryAquaticUnderwater = builder.comment("Lucidity recovered per latex need interval while an aquatic latex form is underwater.").defineInRange("lucidityRecoveryAquaticUnderwater", 0.5D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexSmall = builder.comment("Lucidity drain offset per latex need interval near a small amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexSmall", 0.3D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexMedium = builder.comment("Lucidity drain offset per latex need interval near a moderate amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexMedium", 0.5D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexLarge = builder.comment("Lucidity drain offset per latex need interval near a dense friendly latex nest.").defineInRange("lucidityRecoveryNearLatexLarge", 0.75D, 0.0D, 100.0D);
+            lucidityRecoveryAquaticUnderwater = builder.comment("Lucidity drain offset per latex need interval while an aquatic latex form is underwater.").defineInRange("lucidityRecoveryAquaticUnderwater", 0.5D, 0.0D, 100.0D);
+            lucidityNearbyLatexMaxDrainReduction = builder.comment("Maximum fraction of normal lucidity drain that nearby friendly latex can cancel. 0.75 means at least 25% of drain still applies.").defineInRange("lucidityNearbyLatexMaxDrainReduction", 0.75D, 0.0D, 1.0D);
             lucidityRecoveryFromLatexNestSleep = builder.comment("Lucidity restored when waking after sleeping long enough in a friendly latex nest.").defineInRange("lucidityRecoveryFromLatexNestSleep", 25.0D, 0.0D, 100.0D);
             lucidityRecoveryFromAssimilation = builder.comment("Lucidity restored when a latex player successfully assimilates/transfurs another entity.").defineInRange("lucidityRecoveryFromAssimilation", 20.0D, 0.0D, 100.0D);
             culturedStrandNestAttunement = builder.comment("Attunement added to a carried matching cultured strand when sleeping in a friendly latex nest.").defineInRange("culturedStrandNestAttunement", 40.0D, 0.0D, 100.0D);
@@ -153,7 +159,11 @@ public final class CSPConfig {
             builder.push("misc");
             reworkGrabEntityControls = builder.comment("If true, Changed Grab Entity controls are reworked: left click absorbs/assimilates, right click replicates.").define("reworkGrabEntityControls", true);
             latexMobsAttackDifferentLatexPlayers = builder.comment("If true, Changed latex mobs can target transfurred players unless they share/friend the same latex type.").define("latexMobsAttackDifferentLatexPlayers", true);
-            changedLatexMobsIgnoreNaturalSpawnLight = builder.comment("If true, natural Changed latex mob spawns ignore the vanilla monster light check, allowing daytime or lit-area spawns while keeping biome, ground, difficulty, and collision rules.").define("changedLatexMobsIgnoreNaturalSpawnLight", false);
+            changedLatexMobsIgnoreNaturalSpawnLight = builder.comment("If true, natural Changed latex mob spawns can ignore the vanilla monster light check, allowing limited daytime or lit-area spawns while keeping biome, ground, difficulty, collision, and local cap rules.").define("changedLatexMobsIgnoreNaturalSpawnLight", false);
+            changedLatexMobsDaylightSpawnChance = builder.comment("Chance for a failed natural Changed latex spawn to be retried while ignoring light. Lower values keep daytime spawns rare.").defineInRange("changedLatexMobsDaylightSpawnChance", 0.25D, 0.0D, 1.0D);
+            changedLatexMobsDaylightSpawnIncludesAddons = builder.comment("If true, the daylight spawn bypass also affects addon latex entities. Keep false if addon mobs overpopulate broad biome tags.").define("changedLatexMobsDaylightSpawnIncludesAddons", false);
+            changedLatexMobsNaturalSpawnLocalCap = builder.comment("Maximum nearby latex mobs before new natural latex spawns are denied. Set to 0 to disable this cap.").defineInRange("changedLatexMobsNaturalSpawnLocalCap", 8, 0, 200);
+            changedLatexMobsNaturalSpawnLocalCapRadius = builder.comment("Radius checked by changedLatexMobsNaturalSpawnLocalCap.").defineInRange("changedLatexMobsNaturalSpawnLocalCapRadius", 48, 1, 256);
             builder.pop();
 
             builder.push("debug");
