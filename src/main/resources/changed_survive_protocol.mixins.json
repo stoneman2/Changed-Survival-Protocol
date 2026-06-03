@@ -6,6 +6,7 @@
   "refmap": "changed_survive_protocol.refmap.json",
   "mixins": [
     "ChangedGameRulesMixin",
+    "ChangedEntityAccessor",
     "ChangedMicroscopeBlockEntityMixin",
     "ChangedEntityTargetingMixin",
     "GrabEntityAbilityInstanceMixin",

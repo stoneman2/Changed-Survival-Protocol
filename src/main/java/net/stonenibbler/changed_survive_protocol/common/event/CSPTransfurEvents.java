@@ -182,6 +182,14 @@ public final class CSPTransfurEvents {
         return wrapProgressBehavior(player, behavior, new ProgressExposureContext(decision.source() == null ? null : decision.source().getEntity(), decision.transfurVariant().getFormId().toString()));
     }
 
+    public static void addHunterGrabExposure(ServerPlayer player, LivingEntity source, String strainId, double amount) {
+        if (!canRedirectTransfur(player) || amount <= 0.0D) {
+            return;
+        }
+
+        addExposure(player, source, strainId, amount);
+    }
+
     private static AssimilationBehavior wrapProgressBehavior(ServerPlayer player, AssimilationBehavior behavior, ProgressExposureContext context) {
         return new AssimilationBehavior() {
             @Override

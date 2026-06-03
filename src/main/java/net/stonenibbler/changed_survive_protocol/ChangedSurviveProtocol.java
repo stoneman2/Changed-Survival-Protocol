@@ -10,6 +10,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.stonenibbler.changed_survive_protocol.client.CSPClientEvents;
+import net.stonenibbler.changed_survive_protocol.common.ai.CSPHunterAI;
 import net.stonenibbler.changed_survive_protocol.common.command.CSPCommands;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
@@ -67,6 +68,8 @@ public class ChangedSurviveProtocol {
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPTransfurEvents::onKeepConscious);
         MinecraftForge.EVENT_BUS.addListener(CSPTransfurEvents::onEntityVariantAssigned);
         MinecraftForge.EVENT_BUS.addListener(CSPTransfurEvents::onChangedVariant);
+        MinecraftForge.EVENT_BUS.addListener(CSPHunterAI::onEntityJoinLevel);
+        MinecraftForge.EVENT_BUS.addListener(CSPHunterAI::onLivingTick);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onLevelTick);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onChunkLoad);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onEntityLeaveLevel);
