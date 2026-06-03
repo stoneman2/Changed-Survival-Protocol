@@ -3,6 +3,8 @@ package net.stonenibbler.changed_survive_protocol.common.command;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -15,6 +17,9 @@ import net.stonenibbler.changed_survive_protocol.common.event.CSPPlayerEvents;
 import net.stonenibbler.changed_survive_protocol.common.event.CSPTransfurEvents;
 
 public final class CSPCommands {
+    private static final SimpleCommandExceptionType MISSING_PLAYER_DATA = new SimpleCommandExceptionType(
+            Component.literal("CSP player data is not available. Try rejoining; report this if it persists."));
+
     private CSPCommands() {
     }
 
@@ -65,39 +70,43 @@ public final class CSPCommands {
                         .executes(context -> mutate(context.getSource(), clearer::clear, "cleared " + name)));
     }
 
-    private static int get(CommandSourceStack source, String name, Getter getter) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int get(CommandSourceStack source, String name, Getter getter) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        CSPPlayerData data = CSPCapabilities.get(player).orElseThrow(IllegalStateException::new);
+        CSPPlayerData data = data(player);
         source.sendSuccess(() -> Component.literal(name + ": " + format(getter.get(data))), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int mutate(CommandSourceStack source, Mutator mutator, String message) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int mutate(CommandSourceStack source, Mutator mutator, String message) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        CSPPlayerData data = CSPCapabilities.get(player).orElseThrow(IllegalStateException::new);
+        CSPPlayerData data = data(player);
         mutator.mutate(data);
         CSPPlayerEvents.sync(player);
         source.sendSuccess(() -> Component.literal(message), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int forceCollapse(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int forceCollapse(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        CSPPlayerData data = CSPCapabilities.get(player).orElseThrow(IllegalStateException::new);
+        CSPPlayerData data = data(player);
         FeralBodySpawner.forceCollapse(player, data);
         source.sendSuccess(() -> Component.literal("forced lucidity collapse"), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int forceTransfur(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int forceTransfur(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        CSPPlayerData data = CSPCapabilities.get(player).orElseThrow(IllegalStateException::new);
+        CSPPlayerData data = data(player);
         data.setInfected(true);
         data.setInfectionPercent(100.0D);
         CSPTransfurEvents.forceUncontrolledTransfur(player, data);
         CSPPlayerEvents.sync(player);
         source.sendSuccess(() -> Component.literal("forced uncontrolled CSP transfur"), false);
         return Command.SINGLE_SUCCESS;
+    }
+
+    private static CSPPlayerData data(ServerPlayer player) throws CommandSyntaxException {
+        return CSPCapabilities.get(player).resolve().orElseThrow(MISSING_PLAYER_DATA::create);
     }
 
     private static String format(double value) {

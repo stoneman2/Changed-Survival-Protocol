@@ -8,12 +8,12 @@ import net.minecraftforge.common.util.LazyOptional;
 
 public class CSPPlayerDataProvider implements ICapabilitySerializable<CompoundTag> {
     private final CSPPlayerData data = new CSPPlayerData();
-    private final LazyOptional<CSPPlayerData> optional = LazyOptional.of(() -> data);
+    private LazyOptional<CSPPlayerData> optional = LazyOptional.of(() -> data);
 
     @Override
     public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
         if (cap == CSPCapabilities.PLAYER_DATA) {
-            return optional.cast();
+            return optional().cast();
         }
         return LazyOptional.empty();
     }
@@ -30,5 +30,12 @@ public class CSPPlayerDataProvider implements ICapabilitySerializable<CompoundTa
 
     public void invalidate() {
         optional.invalidate();
+    }
+
+    private LazyOptional<CSPPlayerData> optional() {
+        if (!optional.isPresent()) {
+            optional = LazyOptional.of(() -> data);
+        }
+        return optional;
     }
 }
