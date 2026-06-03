@@ -33,31 +33,31 @@ public class LatexCentrifugeMenu extends AbstractContainerMenu {
         this.container = container;
         this.data = data;
 
-        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_STRAND, 35, 35) {
+        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_STRAND, 22, 33) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return stack.is(CSPItems.IDENTIFIED_LATEX_STRAND.get());
             }
         });
-        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_ADDITIVE, 62, 35) {
+        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_ADDITIVE, 52, 33) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return stack.is(CSPItems.LATEX_INHIBITOR.get()) || stack.is(CSPItems.STABILIZING_REAGENT.get());
             }
         });
-        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_DISINFECTANT, 89, 35) {
+        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_DISINFECTANT, 82, 33) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return stack.is(CSPItems.DISINFECTANT_SPRAY.get());
             }
         });
-        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_LATEX_FEED, 116, 35) {
+        this.addSlot(new Slot(container, LatexCentrifugeBlockEntity.SLOT_LATEX_FEED, 112, 33) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return LatexCentrifugeBlockEntity.isLatexFeed(stack);
             }
         });
-        this.addSlot(new OutputSlot(container, LatexCentrifugeBlockEntity.SLOT_OUTPUT, 152, 35));
+        this.addSlot(new OutputSlot(container, LatexCentrifugeBlockEntity.SLOT_OUTPUT, 142, 33));
         addPlayerInventory(inventory);
         addDataSlots(data);
     }

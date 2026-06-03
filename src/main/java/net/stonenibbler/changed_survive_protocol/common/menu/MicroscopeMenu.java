@@ -33,13 +33,13 @@ public class MicroscopeMenu extends AbstractContainerMenu {
         this.container = container;
         this.data = data;
 
-        this.addSlot(new Slot(container, MicroscopeBlockEntity.SLOT_INPUT, 56, 35) {
+        this.addSlot(new Slot(container, MicroscopeBlockEntity.SLOT_INPUT, 40, 35) {
             @Override
             public boolean mayPlace(ItemStack stack) {
                 return CSPMicroscopeInteractions.isSupportedInput(stack);
             }
         });
-        this.addSlot(new OutputSlot(container, MicroscopeBlockEntity.SLOT_OUTPUT, 116, 35));
+        this.addSlot(new OutputSlot(container, MicroscopeBlockEntity.SLOT_OUTPUT, 120, 35));
         addPlayerInventory(inventory);
         addDataSlots(data);
     }
