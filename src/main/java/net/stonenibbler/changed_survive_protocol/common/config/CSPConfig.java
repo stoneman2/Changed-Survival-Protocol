@@ -73,7 +73,6 @@ public final class CSPConfig {
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexMedium;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryNearLatexLarge;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryAquaticUnderwater;
-        public final ForgeConfigSpec.DoubleValue lucidityNearbyLatexMaxDrainReduction;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromLatexNestSleep;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromAssimilation;
         public final ForgeConfigSpec.DoubleValue culturedStrandNestAttunement;
@@ -143,11 +142,10 @@ public final class CSPConfig {
             unstableTicksForMaxMultiplier = builder.comment("How many ticks does it take for lucidity to reach the maximum drain multiplier.").defineInRange("unstableTicksForMaxMultiplier", 24000, 1, 20 * 60 * 60 * 24);
             lucidityRecoveryPerFoodNutrition = builder.comment("Lucidity restored when a latex player finishes eating food, per nutrition point.").defineInRange("lucidityRecoveryPerFoodNutrition", 0.4D, 0.0D, 100.0D);
             lucidityRecoveryPerFoodSaturation = builder.comment("Lucidity restored when a latex player finishes eating food, per saturation modifier point.").defineInRange("lucidityRecoveryPerFoodSaturation", 3.0D, 0.0D, 100.0D);
-            lucidityRecoveryNearLatexSmall = builder.comment("Lucidity drain offset per latex need interval near a small amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexSmall", 0.3D, 0.0D, 100.0D);
-            lucidityRecoveryNearLatexMedium = builder.comment("Lucidity drain offset per latex need interval near a moderate amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexMedium", 0.5D, 0.0D, 100.0D);
-            lucidityRecoveryNearLatexLarge = builder.comment("Lucidity drain offset per latex need interval near a dense friendly latex nest.").defineInRange("lucidityRecoveryNearLatexLarge", 0.75D, 0.0D, 100.0D);
-            lucidityRecoveryAquaticUnderwater = builder.comment("Lucidity drain offset per latex need interval while an aquatic latex form is underwater.").defineInRange("lucidityRecoveryAquaticUnderwater", 0.5D, 0.0D, 100.0D);
-            lucidityNearbyLatexMaxDrainReduction = builder.comment("Maximum fraction of normal lucidity drain that nearby friendly latex can cancel. 0.75 means at least 25% of drain still applies.").defineInRange("lucidityNearbyLatexMaxDrainReduction", 0.75D, 0.0D, 1.0D);
+            lucidityRecoveryNearLatexSmall = builder.comment("Lucidity restored per latex need interval near a small amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexSmall", 0.3D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexMedium = builder.comment("Lucidity restored per latex need interval near a moderate amount of friendly latex.").defineInRange("lucidityRecoveryNearLatexMedium", 0.5D, 0.0D, 100.0D);
+            lucidityRecoveryNearLatexLarge = builder.comment("Lucidity restored per latex need interval near a dense friendly latex nest.").defineInRange("lucidityRecoveryNearLatexLarge", 0.75D, 0.0D, 100.0D);
+            lucidityRecoveryAquaticUnderwater = builder.comment("Lucidity restored per latex need interval while an aquatic latex form is underwater.").defineInRange("lucidityRecoveryAquaticUnderwater", 0.5D, 0.0D, 100.0D);
             lucidityRecoveryFromLatexNestSleep = builder.comment("Lucidity restored when waking after sleeping long enough in a friendly latex nest.").defineInRange("lucidityRecoveryFromLatexNestSleep", 25.0D, 0.0D, 100.0D);
             lucidityRecoveryFromAssimilation = builder.comment("Lucidity restored when a latex player successfully assimilates/transfurs another entity.").defineInRange("lucidityRecoveryFromAssimilation", 20.0D, 0.0D, 100.0D);
             culturedStrandNestAttunement = builder.comment("Attunement added to a carried matching cultured strand when sleeping in a friendly latex nest.").defineInRange("culturedStrandNestAttunement", 40.0D, 0.0D, 100.0D);

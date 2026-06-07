@@ -40,29 +40,25 @@ public final class CSPLucidityEvents {
 
         boolean dirty = false;
         boolean nearFriendlyLatex = false;
-        double drainOffset = 0.0D;
+        double recovery = 0.0D;
         LatexStrandManager.Strand strand = LatexStrandManager.resolve(player).orElse(null);
         if (strand != null) {
             int count = countFriendlyLatex(player.level(), player.blockPosition(), strand.latexType(), 2, 1, 2);
             nearFriendlyLatex = count >= SMALL_LATEX_COUNT;
             boolean aquaticUnderwater = strand.family() == LatexStrandManager.Family.AQUATIC && player.isEyeInFluid(FluidTags.WATER);
             if (nearFriendlyLatex) {
-                drainOffset += count >= LARGE_LATEX_COUNT
+                recovery += count >= LARGE_LATEX_COUNT
                         ? CSPConfig.COMMON.lucidityRecoveryNearLatexLarge.get()
                         : count >= MEDIUM_LATEX_COUNT
                         ? CSPConfig.COMMON.lucidityRecoveryNearLatexMedium.get()
                         : CSPConfig.COMMON.lucidityRecoveryNearLatexSmall.get();
             }
             if (aquaticUnderwater) {
-                drainOffset += CSPConfig.COMMON.lucidityRecoveryAquaticUnderwater.get();
+                recovery += CSPConfig.COMMON.lucidityRecoveryAquaticUnderwater.get();
             }
         }
 
-        double drain = Math.max(0.0D, lucidityDrain);
-        double delta = -drain;
-        if (drain > 0.0D && drainOffset > 0.0D) {
-            delta += Math.min(drainOffset, drain * CSPConfig.COMMON.lucidityNearbyLatexMaxDrainReduction.get());
-        }
+        double delta = recovery - Math.max(0.0D, lucidityDrain);
         if (delta != 0.0D) {
             data.addLucidity(delta);
             dirty = true;
