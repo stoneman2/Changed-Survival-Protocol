@@ -1,5 +1,5 @@
 This is the repository for the mod **Changed-Survival-Protocol**.
-The mod is currently on version **1.0.0** and requires Changed-Minecraft-Mod version **0.15.4**. 
+The mod is currently on version **1.0.0** and requires Changed-Minecraft-Mod version **0.15.4+**. 
 
 ## How can I compile the mod?
 
