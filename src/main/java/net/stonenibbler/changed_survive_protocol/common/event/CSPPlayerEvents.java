@@ -193,6 +193,10 @@ public final class CSPPlayerEvents {
     private static boolean tickLatexNeeds(ServerPlayer player, CSPPlayerData data) {
         boolean dirty = false;
 
+        if (player.isSpectator()) {
+            return false;
+        }
+
         if (!shouldDrainLucidity(player)) {
             dirty |= CSPLucidityEvents.tickLatexEnvironment(player, data, 0.0D);
             return dirty;
@@ -219,7 +223,7 @@ public final class CSPPlayerEvents {
     }
 
     private static boolean shouldDrainLucidity(ServerPlayer player) {
-        return !player.isCreative() || CSPConfig.COMMON.creativeModeLucidityDrain.get();
+        return !player.isSpectator() && (!player.isCreative() || CSPConfig.COMMON.creativeModeLucidityDrain.get());
     }
 
     private static void startInfection(CSPPlayerData data) {
