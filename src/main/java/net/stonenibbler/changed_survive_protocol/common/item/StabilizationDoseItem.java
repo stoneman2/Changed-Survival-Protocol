@@ -1,6 +1,5 @@
 package net.stonenibbler.changed_survive_protocol.common.item;
 
-import net.ltxprogrammer.changed.process.ProcessTransfur;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,6 +12,7 @@ import net.minecraft.world.level.Level;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.network.CSPNetwork;
+import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,7 +35,7 @@ public class StabilizationDoseItem extends StrainTaggedItem {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
         }
-        if (!ProcessTransfur.isPlayerTransfurred(player)) {
+        if (!CSPTransfurState.hasNonSuitTransfur(player)) {
             player.displayClientMessage(Component.translatable("message.changed_survive_protocol.stabilization.not_latex"), true);
             return InteractionResultHolder.fail(stack);
         }

@@ -26,6 +26,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.latex.LatexStrandManager;
 import net.stonenibbler.changed_survive_protocol.common.network.SyncCSPPlayerDataPacket;
+import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 
 @OnlyIn(Dist.CLIENT)
 public final class CSPOverlays {
@@ -239,7 +240,7 @@ public final class CSPOverlays {
     }
 
     private static MeterMode meterMode(Player player, SyncCSPPlayerDataPacket data) {
-        if (ProcessTransfur.isPlayerLatex(player)) {
+        if (CSPTransfurState.hasNonSuitLatex(player)) {
             return MeterMode.LUCIDITY;
         }
         if (data.infected() || data.infectionPercent() > 0.0D) {

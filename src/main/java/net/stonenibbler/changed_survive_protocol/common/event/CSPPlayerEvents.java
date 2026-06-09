@@ -16,6 +16,7 @@ import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
 import net.stonenibbler.changed_survive_protocol.common.latex.LatexStrandManager;
 import net.stonenibbler.changed_survive_protocol.common.network.CSPNetwork;
+import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 
 import java.util.Map;
 import java.util.UUID;
@@ -102,7 +103,7 @@ public final class CSPPlayerEvents {
     }
 
     public static void onFoodFinished(LivingEntityUseItemEvent.Finish event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !ProcessTransfur.isPlayerTransfurred(player)) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !CSPTransfurState.hasNonSuitTransfur(player)) {
             return;
         }
         if (event.getItem().getFoodProperties(player) == null) {
@@ -130,13 +131,15 @@ public final class CSPPlayerEvents {
         }
 
         boolean transfurred = ProcessTransfur.isPlayerTransfurred(player);
+        boolean nonSuitTransfurred = CSPTransfurState.hasNonSuitTransfur(player);
         if (!transfurred && data.hasSettledStrain()) {
             dirty |= CSPTransfurEvents.restoreSettledForm(player, data);
             transfurred = ProcessTransfur.isPlayerTransfurred(player);
+            nonSuitTransfurred = CSPTransfurState.hasNonSuitTransfur(player);
         }
 
-        if (data.isLucidityActive() != transfurred) {
-            data.setLucidityActive(transfurred);
+        if (data.isLucidityActive() != nonSuitTransfurred) {
+            data.setLucidityActive(nonSuitTransfurred);
             dirty = true;
         }
 
@@ -146,7 +149,9 @@ public final class CSPPlayerEvents {
                 data.setInfected(false);
                 dirty = true;
             }
-            dirty |= tickLatexNeeds(player, data);
+            if (nonSuitTransfurred) {
+                dirty |= tickLatexNeeds(player, data);
+            }
         }
 
         if (!transfurred) {

@@ -15,6 +15,7 @@ import net.ltxprogrammer.changed.process.TransfurEvents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
@@ -28,6 +29,7 @@ import java.util.function.Consumer;
 
 public final class CSPTransfurEvents {
     private static final Set<UUID> ALLOWED_IMMEDIATE_TRANSFURS = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private static final Set<UUID> COMMAND_UNTRANSFUR_RESETS = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final ConcurrentHashMap<UUID, Long> BLOCKED_PROGRESS_COMPLETIONS = new ConcurrentHashMap<>();
     private static final ThreadLocal<ProgressExposureContext> ACTIVE_PROGRESS_CONTEXT = new ThreadLocal<>();
 
@@ -39,7 +41,9 @@ public final class CSPTransfurEvents {
             return;
         }
 
-        if (restoreSettledVariantAssignment(player, event)) {
+        if (hasCommandUntransfurReset(player)) {
+            tryCompleteCommandUntransfurReset(player, "variant assignment after command untransfur");
+        } else if (restoreSettledVariantAssignment(player, event)) {
             return;
         }
 
@@ -54,17 +58,7 @@ public final class CSPTransfurEvents {
             return;
         }
 
-        CSPCapabilities.get(player).ifPresent(data -> {
-            data.setLucidityActive(false);
-            data.setUnstableLatex(false);
-            data.setStabilizedLatex(false);
-            data.setUnstableLatexTicks(0);
-            data.setLucidityDrainMultiplier(1.0D);
-            data.setLucidity(100.0D);
-            data.setCoverage(0.0D);
-            data.setInfected(false);
-            CSPNetwork.sync(player, data);
-        });
+        resetAfterUntransfur(player);
     }
 
     public static void onKeepConscious(ProcessTransfur.KeepConsciousEvent event) {
@@ -77,15 +71,28 @@ public final class CSPTransfurEvents {
         if (!(event.player instanceof ServerPlayer player)) {
             return;
         }
-        CSPCapabilities.get(player).ifPresent(data -> {
-            if (!data.hasSettledStrain()) {
-                return;
-            }
-            event.setNextVariant(resolveVariant(data.getSettledStrainId()));
-            event.setCanceled(true);
-            ensureSettledState(data);
-            CSPNetwork.sync(player, data);
-        });
+        if (event instanceof TransfurEvents.UntransfurPlayerByCommandEvent) {
+            COMMAND_UNTRANSFUR_RESETS.add(player.getUUID());
+            tryCompleteCommandUntransfurReset(player, "command untransfur");
+            return;
+        }
+
+        try {
+            CSPCapabilities.get(player).ifPresent(data -> {
+                if (!data.hasSettledStrain()) {
+                    return;
+                }
+
+                TransfurVariant<?> nextVariant = resolveVariant(data.getSettledStrainId());
+                ensureSettledState(data);
+                event.setNextVariant(nextVariant);
+                event.setCanceled(true);
+                syncSafely(player, data, "settled untransfur protection");
+            });
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to handle CSP untransfur protection for {}; leaving event unchanged",
+                    player.getScoreboardName(), exception);
+        }
     }
 
     public static void onChangedVariant(ProcessTransfur.EntityVariantAssigned.ChangedVariant event) {
@@ -93,25 +100,30 @@ public final class CSPTransfurEvents {
             return;
         }
 
-        CSPCapabilities.get(player).ifPresent(data -> {
-            if (event.newVariant != null) {
-                data.setStrainId(event.newVariant.getFormId().toString());
-            }
+        try {
+            CSPCapabilities.get(player).ifPresent(data -> {
+                if (event.newVariant != null) {
+                    data.setStrainId(event.newVariant.getFormId().toString());
+                }
 
-            if (event.context != null && event.context.cause() == TransfurCause.STASIS_CHAMBER) {
-                data.setStabilizedLatex(true);
-                data.setUnstableLatex(false);
-                data.setUnstableLatexTicks(0);
-                data.setLucidityDrainMultiplier(1.0D);
-                data.setLucidity(100.0D);
-                data.setCoverage(0.0D);
-                data.setInfected(false);
-                data.setLucidityActive(true);
-            } else {
-                activateLatexNeeds(data);
-            }
-            CSPNetwork.sync(player, data);
-        });
+                if (event.context != null && event.context.cause() == TransfurCause.STASIS_CHAMBER) {
+                    data.setStabilizedLatex(true);
+                    data.setUnstableLatex(false);
+                    data.setUnstableLatexTicks(0);
+                    data.setLucidityDrainMultiplier(1.0D);
+                    data.setLucidity(100.0D);
+                    data.setCoverage(0.0D);
+                    data.setInfected(false);
+                    data.setLucidityActive(true);
+                } else {
+                    activateLatexNeeds(data);
+                }
+                syncSafely(player, data, "variant change");
+            });
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to update CSP data for {} after variant change",
+                    player.getScoreboardName(), exception);
+        }
     }
 
     public static void forceUncontrolledTransfur(ServerPlayer player, CSPPlayerData data) {
@@ -133,19 +145,30 @@ public final class CSPTransfurEvents {
     }
 
     public static boolean restoreSettledForm(ServerPlayer player, CSPPlayerData data) {
-        if (!data.hasSettledStrain() || ProcessTransfur.isPlayerTransfurred(player)) {
+        if (hasCommandUntransfurReset(player)) {
+            tryCompleteCommandUntransfurReset(player, "settled form restore after command untransfur");
             return false;
         }
 
-        TransfurVariant<?> variant = resolveVariant(data.getSettledStrainId());
-        ALLOWED_IMMEDIATE_TRANSFURS.add(player.getUUID());
         try {
-            ProcessTransfur.setPlayerTransfurVariant(player, variant, TransfurContext.hazard(TransfurCause.DEFAULT), 1.0F);
-            ensureSettledState(data);
-            CSPNetwork.sync(player, data);
-            return true;
-        } finally {
-            ALLOWED_IMMEDIATE_TRANSFURS.remove(player.getUUID());
+            if (!data.hasSettledStrain() || ProcessTransfur.isPlayerTransfurred(player)) {
+                return false;
+            }
+
+            TransfurVariant<?> variant = resolveVariant(data.getSettledStrainId());
+            ALLOWED_IMMEDIATE_TRANSFURS.add(player.getUUID());
+            try {
+                ProcessTransfur.setPlayerTransfurVariant(player, variant, TransfurContext.hazard(TransfurCause.DEFAULT), 1.0F);
+                ensureSettledState(data);
+                syncSafely(player, data, "settled form restore");
+                return true;
+            } finally {
+                ALLOWED_IMMEDIATE_TRANSFURS.remove(player.getUUID());
+            }
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to restore settled CSP form for {}; leaving player unchanged",
+                    player.getScoreboardName(), exception);
+            return false;
         }
     }
 
@@ -266,22 +289,77 @@ public final class CSPTransfurEvents {
                 }
             }
 
-            CSPNetwork.sync(player, data);
+            syncSafely(player, data, "transfur exposure");
         });
     }
 
     private static boolean restoreSettledVariantAssignment(ServerPlayer player, ProcessTransfur.EntityVariantAssigned event) {
         final boolean[] restored = {false};
-        CSPCapabilities.get(player).ifPresent(data -> {
-            if (!data.hasSettledStrain()) {
-                return;
-            }
-            event.variant = resolveVariant(data.getSettledStrainId());
-            ensureSettledState(data);
-            CSPNetwork.sync(player, data);
-            restored[0] = true;
-        });
+        try {
+            CSPCapabilities.get(player).ifPresent(data -> {
+                if (!data.hasSettledStrain()) {
+                    return;
+                }
+                event.variant = resolveVariant(data.getSettledStrainId());
+                ensureSettledState(data);
+                syncSafely(player, data, "settled variant assignment");
+                restored[0] = true;
+            });
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to restore settled CSP variant for {}; leaving assignment unchanged",
+                    player.getScoreboardName(), exception);
+        }
         return restored[0];
+    }
+
+    private static boolean hasCommandUntransfurReset(ServerPlayer player) {
+        return COMMAND_UNTRANSFUR_RESETS.contains(player.getUUID());
+    }
+
+    private static void tryCompleteCommandUntransfurReset(ServerPlayer player, String reason) {
+        try {
+            final boolean[] reset = {false};
+            CSPCapabilities.get(player).ifPresent(data -> {
+                data.reset();
+                syncSafely(player, data, reason);
+                reset[0] = true;
+            });
+
+            if (reset[0]) {
+                COMMAND_UNTRANSFUR_RESETS.remove(player.getUUID());
+            }
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to clear CSP data for {} during {}; command untransfur will continue",
+                    player.getScoreboardName(), reason, exception);
+        }
+    }
+
+    private static void resetAfterUntransfur(ServerPlayer player) {
+        try {
+            CSPCapabilities.get(player).ifPresent(data -> {
+                data.setLucidityActive(false);
+                data.setUnstableLatex(false);
+                data.setStabilizedLatex(false);
+                data.setUnstableLatexTicks(0);
+                data.setLucidityDrainMultiplier(1.0D);
+                data.setLucidity(100.0D);
+                data.setCoverage(0.0D);
+                data.setInfected(false);
+                syncSafely(player, data, "untransfur cleanup");
+            });
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to clean CSP data for {} after untransfur",
+                    player.getScoreboardName(), exception);
+        }
+    }
+
+    private static void syncSafely(ServerPlayer player, CSPPlayerData data, String reason) {
+        try {
+            CSPNetwork.sync(player, data);
+        } catch (RuntimeException exception) {
+            ChangedSurviveProtocol.LOGGER.warn("Failed to sync CSP data for {} during {}",
+                    player.getScoreboardName(), reason, exception);
+        }
     }
 
     private static void ensureSettledState(CSPPlayerData data) {

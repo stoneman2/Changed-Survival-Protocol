@@ -23,6 +23,7 @@ import net.stonenibbler.changed_survive_protocol.common.item.CSPStrainItems;
 import net.stonenibbler.changed_survive_protocol.common.latex.LatexStrandManager;
 import net.stonenibbler.changed_survive_protocol.common.network.CSPNetwork;
 import net.stonenibbler.changed_survive_protocol.common.registry.CSPItems;
+import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 
 public final class CSPLucidityEvents {
     private static final int SMALL_LATEX_COUNT = 3;
@@ -34,7 +35,7 @@ public final class CSPLucidityEvents {
     }
 
     public static boolean tickLatexEnvironment(ServerPlayer player, CSPPlayerData data, double lucidityDrain) {
-        if (!ProcessTransfur.isPlayerTransfurred(player) || player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() != 0) {
+        if (!CSPTransfurState.hasNonSuitTransfur(player) || player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() != 0) {
             return false;
         }
 
@@ -71,7 +72,7 @@ public final class CSPLucidityEvents {
     }
 
     public static void onPlayerWakeUp(PlayerWakeUpEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !ProcessTransfur.isPlayerTransfurred(player) || !player.isSleepingLongEnough()) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !CSPTransfurState.hasNonSuitTransfur(player) || !player.isSleepingLongEnough()) {
             return;
         }
         BlockPos bedPos = player.getSleepingPos().orElse(null);
@@ -104,7 +105,7 @@ public final class CSPLucidityEvents {
     }
 
     public static void rewardAssimilation(Player player) {
-        if (!(player instanceof ServerPlayer serverPlayer) || !ProcessTransfur.isPlayerTransfurred(player)) {
+        if (!(player instanceof ServerPlayer serverPlayer) || !CSPTransfurState.hasNonSuitTransfur(player)) {
             return;
         }
         CSPCapabilities.get(serverPlayer).ifPresent(data -> {
