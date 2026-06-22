@@ -24,6 +24,9 @@ final class LatexHeartSignaling {
         if (Math.floorMod(gameTime + heart.id().getLeastSignificantBits(), PASSIVE_INTERVAL) != 0) {
             return;
         }
+        if (!hasNearbyPlayer(level, heart.pos())) {
+            return;
+        }
 
         List<BlockPos> nodes = LatexHeartNodes.activeNodes(level, data, heart);
         if (nodes.isEmpty()) {
@@ -31,9 +34,7 @@ final class LatexHeartSignaling {
             return;
         }
 
-        if (hasNearbyPlayer(level, heart.pos())) {
-            nodeLocator(level, heart, nodes.get(0), false);
-        }
+        nodeLocator(level, heart, nodes.get(0), false);
     }
 
     static void protectedBreakFeedback(ServerLevel level, Player player, LatexInfestationSavedData.HeartRecord heart, List<BlockPos> nodes) {

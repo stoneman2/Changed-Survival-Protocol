@@ -52,6 +52,9 @@ final class LatexHeartSeeder {
         if (chance <= 0 || level.random.nextInt(chance) != 0 || level.players().isEmpty()) {
             return;
         }
+        if (!hasActiveHeartCapacity(level, data)) {
+            return;
+        }
         ChunkPos chunk = new ChunkPos(level.players().get(level.random.nextInt(level.players().size())).blockPosition());
         int dx = level.random.nextInt(17) - 8;
         int dz = level.random.nextInt(17) - 8;
@@ -62,8 +65,7 @@ final class LatexHeartSeeder {
         if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)) {
             return;
         }
-        int maxActive = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MAX_ACTIVE_PER_DIMENSION);
-        if (maxActive > 0 && data.activeHeartCount() >= maxActive) {
+        if (!hasActiveHeartCapacity(level, data)) {
             return;
         }
         if (newChunk && !data.markChunkGenerated(chunk)) {
@@ -83,6 +85,11 @@ final class LatexHeartSeeder {
         }
         LatexHeartBlock.Kind kind = kindForBiome(level, center);
         LatexInfestationManager.spawnHeartAt(level, center, kind);
+    }
+
+    private static boolean hasActiveHeartCapacity(ServerLevel level, LatexInfestationSavedData data) {
+        int maxActive = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MAX_ACTIVE_PER_DIMENSION);
+        return maxActive <= 0 || data.activeHeartCount() < maxActive;
     }
 
     private static LatexHeartBlock.Kind kindForBiome(ServerLevel level, BlockPos pos) {
