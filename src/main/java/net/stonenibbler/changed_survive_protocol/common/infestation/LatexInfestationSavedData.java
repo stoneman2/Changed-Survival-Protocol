@@ -13,6 +13,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,7 +29,9 @@ public class LatexInfestationSavedData extends SavedData {
     private final Map<UUID, HeartRecord> hearts = new HashMap<>();
     private final Map<BlockPos, UUID> claims = new HashMap<>();
     private final Map<UUID, Set<BlockPos>> claimsByHeart = new HashMap<>();
+    private final Map<UUID, List<BlockPos>> claimListsByHeart = new HashMap<>();
     private final Map<UUID, Set<BlockPos>> activeClaimsByHeart = new HashMap<>();
+    private final Map<UUID, List<BlockPos>> activeClaimListsByHeart = new HashMap<>();
     private final Map<BlockPos, UUID> nodes = new HashMap<>();
     private final Map<UUID, Set<BlockPos>> nodesByHeart = new HashMap<>();
     private final Map<BlockPos, Long> nodeCooldowns = new HashMap<>();
@@ -97,7 +100,7 @@ public class LatexInfestationSavedData extends SavedData {
         for (int i = 0; i < exhaustedTag.size(); i++) {
             BlockPos pos = BlockPos.of(exhaustedTag.getCompound(i).getLong("pos"));
             data.exhaustedCover.add(pos);
-            data.claimedBy(pos).ifPresent(heart -> removeFromIndex(data.activeClaimsByHeart, heart, pos));
+            data.claimedBy(pos).ifPresent(heart -> removeFromIndex(data.activeClaimsByHeart, data.activeClaimListsByHeart, heart, pos));
         }
 
         ListTag chunkTag = tag.getList("generatedChunks", net.minecraft.nbt.Tag.TAG_COMPOUND);
@@ -211,7 +214,13 @@ public class LatexInfestationSavedData extends SavedData {
     }
 
     public int activeHeartCount() {
-        return activeHearts().size();
+        int count = 0;
+        for (HeartRecord heart : hearts.values()) {
+            if (heart.alive()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public Optional<HeartRecord> heartAt(BlockPos pos) {
@@ -267,13 +276,13 @@ public class LatexInfestationSavedData extends SavedData {
         BlockPos immutable = pos.immutable();
         UUID oldHeart = claims.put(immutable, heart);
         if (oldHeart != null && !oldHeart.equals(heart)) {
-            removeFromIndex(claimsByHeart, oldHeart, immutable);
-            removeFromIndex(activeClaimsByHeart, oldHeart, immutable);
+            removeFromIndex(claimsByHeart, claimListsByHeart, oldHeart, immutable);
+            removeFromIndex(activeClaimsByHeart, activeClaimListsByHeart, oldHeart, immutable);
         }
-        addToIndex(claimsByHeart, heart, immutable);
+        addToIndex(claimsByHeart, claimListsByHeart, heart, immutable);
         exhaustedCover.remove(immutable);
         playerSecretions.remove(immutable);
-        addToIndex(activeClaimsByHeart, heart, immutable);
+        addToIndex(activeClaimsByHeart, activeClaimListsByHeart, heart, immutable);
     }
 
     public Optional<UUID> claimedBy(BlockPos pos) {
@@ -285,11 +294,27 @@ public class LatexInfestationSavedData extends SavedData {
     }
 
     public List<BlockPos> claimsFor(UUID heart) {
-        return new ArrayList<>(claimsByHeart.getOrDefault(heart, Collections.emptySet()));
+        return new ArrayList<>(claimListsByHeart.getOrDefault(heart, Collections.emptyList()));
+    }
+
+    public Collection<BlockPos> claimPositions(UUID heart) {
+        return claimListsByHeart.getOrDefault(heart, Collections.emptyList());
+    }
+
+    public List<BlockPos> claimPositionList(UUID heart) {
+        return claimListsByHeart.getOrDefault(heart, Collections.emptyList());
     }
 
     public List<BlockPos> activeClaimsFor(UUID heart) {
-        return new ArrayList<>(activeClaimsByHeart.getOrDefault(heart, Collections.emptySet()));
+        return new ArrayList<>(activeClaimListsByHeart.getOrDefault(heart, Collections.emptyList()));
+    }
+
+    public Collection<BlockPos> activeClaimPositions(UUID heart) {
+        return activeClaimListsByHeart.getOrDefault(heart, Collections.emptyList());
+    }
+
+    public List<BlockPos> activeClaimPositionList(UUID heart) {
+        return activeClaimListsByHeart.getOrDefault(heart, Collections.emptyList());
     }
 
     public List<BlockPos> claimsForDeadHeartPositions(int limit) {
@@ -299,7 +324,7 @@ public class LatexInfestationSavedData extends SavedData {
             if (heart != null && heart.alive()) {
                 continue;
             }
-            for (BlockPos pos : entry.getValue()) {
+            for (BlockPos pos : claimListsByHeart.getOrDefault(entry.getKey(), Collections.emptyList())) {
                 positions.add(pos);
                 if (limit > 0 && positions.size() >= limit) {
                     return positions;
@@ -312,8 +337,8 @@ public class LatexInfestationSavedData extends SavedData {
     public void unclaim(BlockPos pos) {
         UUID heart = claims.remove(pos);
         if (heart != null) {
-            removeFromIndex(claimsByHeart, heart, pos);
-            removeFromIndex(activeClaimsByHeart, heart, pos);
+            removeFromIndexedList(claimsByHeart, claimListsByHeart, heart, pos);
+            removeFromIndex(activeClaimsByHeart, activeClaimListsByHeart, heart, pos);
             forgetDeadHeartIfUnclaimed(heart);
         }
         removeNode(pos);
@@ -329,7 +354,9 @@ public class LatexInfestationSavedData extends SavedData {
             return;
         }
         hearts.remove(id);
+        claimListsByHeart.remove(id);
         activeClaimsByHeart.remove(id);
+        activeClaimListsByHeart.remove(id);
         nodesByHeart.remove(id);
         decorationsByHeart.remove(id);
         mobsByHeart.remove(id);
@@ -343,7 +370,7 @@ public class LatexInfestationSavedData extends SavedData {
     public void markCoverExhausted(BlockPos pos) {
         BlockPos immutable = pos.immutable();
         if (exhaustedCover.add(immutable)) {
-            claimedBy(immutable).ifPresent(heart -> removeFromIndex(activeClaimsByHeart, heart, immutable));
+            claimedBy(immutable).ifPresent(heart -> removeFromIndex(activeClaimsByHeart, activeClaimListsByHeart, heart, immutable));
             setDirty();
         }
     }
@@ -351,7 +378,7 @@ public class LatexInfestationSavedData extends SavedData {
     public void wakeCover(BlockPos pos) {
         BlockPos immutable = pos.immutable();
         if (exhaustedCover.remove(immutable)) {
-            claimedBy(immutable).ifPresent(heart -> addToIndex(activeClaimsByHeart, heart, immutable));
+            claimedBy(immutable).ifPresent(heart -> addToIndex(activeClaimsByHeart, activeClaimListsByHeart, heart, immutable));
             setDirty();
         }
     }
@@ -414,6 +441,10 @@ public class LatexInfestationSavedData extends SavedData {
 
     public List<BlockPos> nodesFor(UUID heart) {
         return new ArrayList<>(nodesByHeart.getOrDefault(heart, Collections.emptySet()));
+    }
+
+    public Collection<BlockPos> nodePositions(UUID heart) {
+        return nodesByHeart.getOrDefault(heart, Collections.emptySet());
     }
 
     public void addDecoration(BlockPos pos, UUID heart, Block block) {
@@ -488,6 +519,10 @@ public class LatexInfestationSavedData extends SavedData {
         return new ArrayList<>(decorationsByHeart.getOrDefault(heart, Collections.emptySet()));
     }
 
+    public Collection<BlockPos> decorationPositions(UUID heart) {
+        return decorationsByHeart.getOrDefault(heart, Collections.emptySet());
+    }
+
     public void addMob(UUID mob, UUID heart) {
         putMob(mob, heart);
         setDirty();
@@ -552,8 +587,35 @@ public class LatexInfestationSavedData extends SavedData {
         index.computeIfAbsent(heart, ignored -> new HashSet<>()).add(value);
     }
 
+    private static <T> void addToIndex(Map<UUID, Set<T>> index, Map<UUID, List<T>> listIndex, UUID heart, T value) {
+        if (index.computeIfAbsent(heart, ignored -> new HashSet<>()).add(value)) {
+            listIndex.computeIfAbsent(heart, ignored -> new ArrayList<>()).add(value);
+        }
+    }
+
     private static <T> void removeFromIndex(Map<UUID, Set<T>> index, UUID heart, T value) {
         Set<T> values = index.get(heart);
+        if (values == null) {
+            return;
+        }
+        values.remove(value);
+        if (values.isEmpty()) {
+            index.remove(heart);
+        }
+    }
+
+    private static <T> void removeFromIndex(Map<UUID, Set<T>> index, Map<UUID, List<T>> listIndex, UUID heart, T value) {
+        removeFromIndex(index, heart, value);
+        removeFromIndexedList(listIndex, heart, value);
+    }
+
+    private static <T> void removeFromIndexedList(Map<UUID, Set<T>> setIndex, Map<UUID, List<T>> listIndex, UUID heart, T value) {
+        removeFromIndex(setIndex, heart, value);
+        removeFromIndexedList(listIndex, heart, value);
+    }
+
+    private static <T> void removeFromIndexedList(Map<UUID, List<T>> index, UUID heart, T value) {
+        List<T> values = index.get(heart);
         if (values == null) {
             return;
         }

@@ -172,9 +172,8 @@ final class LatexCoverRules {
     }
 
     static BlockPos randomOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
-        List<BlockPos> claims = data.claimsFor(heart.id());
-        for (int i = 0; i < 16 && !claims.isEmpty(); i++) {
-            BlockPos pos = claims.get(level.random.nextInt(claims.size()));
+        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), 16, level.random);
+        for (BlockPos pos : claims) {
             if (isOwnedCover(level, data, heart, pos)) {
                 return pos;
             }

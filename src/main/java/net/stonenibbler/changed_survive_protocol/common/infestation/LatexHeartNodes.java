@@ -54,14 +54,19 @@ final class LatexHeartNodes {
     }
 
     static List<BlockPos> activeNodes(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
-        return data.nodesFor(heart.id()).stream()
+        return data.nodePositions(heart.id()).stream()
                 .filter(pos -> level.getBlockState(pos).getBlock() instanceof LatexNodeBlock)
                 .sorted(Comparator.comparingDouble(pos -> pos.distSqr(heart.pos())))
                 .toList();
     }
 
     static boolean hasActiveNodes(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
-        return !activeNodes(level, data, heart).isEmpty();
+        for (BlockPos pos : data.nodePositions(heart.id())) {
+            if (level.getBlockState(pos).getBlock() instanceof LatexNodeBlock) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static void updateHeartProtection(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {

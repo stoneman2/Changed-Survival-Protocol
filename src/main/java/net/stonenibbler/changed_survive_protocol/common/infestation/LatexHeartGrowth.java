@@ -45,9 +45,8 @@ final class LatexHeartGrowth {
     }
 
     private static void cleanupDamagedOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
-        List<BlockPos> claims = data.claimsFor(heart.id());
-        for (int checked = 0; checked < claims.size() && checked < MAX_CLAIM_CLEANUP_CHECKS_PER_GROWTH; checked++) {
-            BlockPos pos = claims.get(level.random.nextInt(claims.size()));
+        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), MAX_CLAIM_CLEANUP_CHECKS_PER_GROWTH, level.random);
+        for (BlockPos pos : claims) {
             if (pos.equals(heart.pos())) {
                 continue;
             }
@@ -107,17 +106,15 @@ final class LatexHeartGrowth {
     }
 
     private static BlockPos nextCoverPos(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, boolean canClaimNewPositions) {
-        List<BlockPos> claims = data.activeClaimsFor(heart.id());
+        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.activeClaimPositionList(heart.id()), MAX_FRONTIER_CHECKS_PER_GROWTH, level.random);
         if (claims.isEmpty()) {
-            claims = data.claimsFor(heart.id());
+            claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), MAX_FRONTIER_CHECKS_PER_GROWTH, level.random);
             if (claims.isEmpty()) {
                 claims = List.of(heart.pos());
             }
         }
 
-        int checks = Math.min(claims.size(), MAX_FRONTIER_CHECKS_PER_GROWTH);
-        for (int checked = 0; checked < checks; checked++) {
-            BlockPos origin = claims.get(level.random.nextInt(claims.size()));
+        for (BlockPos origin : claims) {
             if (!origin.equals(heart.pos()) && !LatexCoverRules.isOwnedCover(level, data, heart, origin)) {
                 LatexInfestationManager.onLatexCoverRemoved(level, origin);
                 continue;

@@ -14,7 +14,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.gamerule.CSPGameRules;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +25,7 @@ final class LatexHeartMobSpawner {
     private static final double MOB_SPAWN_HEART_MAX_DISTANCE_SQR = 48.0D * 48.0D;
     private static final double MOB_TRACKING_MAX_DISTANCE_SQR = 128.0D * 128.0D;
     private static final double FLOOR_COVER_SPAWN_Y_OFFSET = 0.125D;
+    private static final int MOB_SPAWN_CLAIM_SAMPLE_SIZE = 160;
 
     private LatexHeartMobSpawner() {
     }
@@ -74,7 +74,7 @@ final class LatexHeartMobSpawner {
     }
 
     private static MobSpawnSpot findMobSpawnSpot(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, Mob mob) {
-        List<BlockPos> claims = data.claimsFor(heart.id());
+        List<BlockPos> claims = data.claimPositionList(heart.id());
         MobSpawnSpot nearPlayer = findMobSpawnSpotNearPlayers(level, claims, heart, mob);
         if (nearPlayer != null) {
             return nearPlayer;
@@ -103,16 +103,18 @@ final class LatexHeartMobSpawner {
     }
 
     private static MobSpawnSpot findMobSpawnSpotNear(ServerLevel level, List<BlockPos> claims, LatexInfestationSavedData.HeartRecord heart, Mob mob, BlockPos center, double minDistanceSqr, double maxDistanceSqr, int attempts) {
-        List<BlockPos> candidates = new ArrayList<>();
-        for (BlockPos claim : claims) {
-            double distance = claim.distSqr(center);
-            if (distance >= minDistanceSqr && distance <= maxDistanceSqr && level.isLoaded(claim)) {
-                candidates.add(claim);
+        List<BlockPos> sample = LatexInfestationUtil.randomSample(claims, MOB_SPAWN_CLAIM_SAMPLE_SIZE, level.random);
+        int checked = 0;
+        for (BlockPos claim : sample) {
+            if (checked >= attempts) {
+                break;
             }
-        }
-        LatexInfestationUtil.shuffle(candidates, level.random);
-        for (int i = 0; i < attempts && i < candidates.size(); i++) {
-            MobSpawnSpot spot = spawnSpotFromClaim(level, heart, candidates.get(i));
+            double distance = claim.distSqr(center);
+            if (distance < minDistanceSqr || distance > maxDistanceSqr || !level.isLoaded(claim)) {
+                continue;
+            }
+            checked++;
+            MobSpawnSpot spot = spawnSpotFromClaim(level, heart, claim);
             if (spot != null && canFitMob(level, mob, spot)) {
                 return spot;
             }

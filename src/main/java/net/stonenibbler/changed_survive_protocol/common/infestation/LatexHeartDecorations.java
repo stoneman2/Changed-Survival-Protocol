@@ -77,7 +77,7 @@ final class LatexHeartDecorations {
     }
 
     private static boolean hasDecorationSpacing(LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, BlockPos pos) {
-        for (BlockPos decoration : data.decorationsFor(heart.id())) {
+        for (BlockPos decoration : data.decorationPositions(heart.id())) {
             if (decoration.distSqr(pos) < DECORATION_SPACING_SQR) {
                 return false;
             }

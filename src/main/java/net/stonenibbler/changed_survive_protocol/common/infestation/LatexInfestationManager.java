@@ -22,7 +22,6 @@ import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.gamerule.CSPGameRules;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -31,6 +30,7 @@ public final class LatexInfestationManager {
     private static final int COLLAPSE_HEART_SEARCH_RADIUS = 8;
     private static final int COLLAPSE_HEART_SEARCH_UP = 4;
     private static final int COLLAPSE_HEART_SEARCH_DOWN = 12;
+    private static final int PROTECTION_REFRESH_INTERVAL = 100;
 
     private LatexInfestationManager() {
     }
@@ -328,6 +328,9 @@ public final class LatexInfestationManager {
         if (event.phase != TickEvent.Phase.END || !(event.level instanceof ServerLevel level)) {
             return;
         }
+        if (level.players().isEmpty()) {
+            return;
+        }
 
         try {
             LatexHeartSeeder.processPendingChunks(level);
@@ -337,7 +340,7 @@ public final class LatexInfestationManager {
 
         LatexInfestationSavedData data = LatexInfestationSavedData.get(level);
         long gameTime = level.getGameTime();
-        for (LatexInfestationSavedData.HeartRecord heart : new ArrayList<>(data.activeHearts())) {
+        for (LatexInfestationSavedData.HeartRecord heart : data.activeHearts()) {
             try {
                 if (!level.isLoaded(heart.pos())) {
                     continue;
@@ -347,7 +350,9 @@ public final class LatexInfestationManager {
                     continue;
                 }
 
-                LatexHeartNodes.updateHeartProtection(level, data, heart);
+                if (shouldRefreshHeartProtection(heart, gameTime)) {
+                    LatexHeartNodes.updateHeartProtection(level, data, heart);
+                }
                 LatexHeartSignaling.tick(level, data, heart, gameTime);
 
                 if (gameTime >= heart.nextGrowthTick()) {
@@ -378,5 +383,9 @@ public final class LatexInfestationManager {
         } catch (RuntimeException exception) {
             ChangedSurviveProtocol.LOGGER.error("Latex infestation maintenance failed in {}", level.dimension().location(), exception);
         }
+    }
+
+    private static boolean shouldRefreshHeartProtection(LatexInfestationSavedData.HeartRecord heart, long gameTime) {
+        return Math.floorMod(gameTime + heart.id().getLeastSignificantBits(), PROTECTION_REFRESH_INTERVAL) == 0;
     }
 }
