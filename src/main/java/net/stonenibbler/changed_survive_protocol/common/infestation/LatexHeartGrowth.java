@@ -14,38 +14,42 @@ import java.util.List;
 
 final class LatexHeartGrowth {
     private static final Direction[] GROWTH_DIRECTIONS = new Direction[]{Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP, Direction.DOWN};
-    private static final int MAX_CLAIM_CLEANUP_CHECKS_PER_GROWTH = 64;
-    private static final int MAX_FRONTIER_CHECKS_PER_GROWTH = 96;
+    private static final int MAX_CLAIM_CLEANUP_CHECKS = 12;
+    private static final int MAX_FRONTIER_CHECKS = 32;
+    private static final int MAX_LOW_PRIORITY_FRONTIER_CHECKS = 8;
     private static final int MIN_VERTICAL_STEP_SCAN = -3;
     private static final int MAX_VERTICAL_STEP_SCAN = 4;
 
     private LatexHeartGrowth() {
     }
 
-    static void growHeart(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
-        cleanupDamagedOwnedCover(level, data, heart);
-
+    static boolean growHeart(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, boolean lowPriority) {
         int maxClaims = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MAX_CLAIMS);
         int claimCount = data.claimCount(heart.id());
+        boolean grew = false;
 
         boolean canClaimNewPositions = maxClaims <= 0 || claimCount < maxClaims;
-        int attempts = claimCount < 48 ? 4 : claimCount < 160 ? 6 : 8;
+        int attempts = lowPriority ? 2 : claimCount < 48 ? 4 : claimCount < 160 ? 6 : 8;
         for (int i = 0; i < attempts; i++) {
-            BlockPos target = nextCoverPos(level, data, heart, canClaimNewPositions);
+            BlockPos target = nextCoverPos(level, data, heart, canClaimNewPositions, lowPriority);
             if (target == null) {
                 break;
             }
             if (tryGrowAt(level, data, heart, target, canClaimNewPositions)) {
+                grew = true;
                 break;
             }
         }
 
-        LatexHeartDecorations.maybeDecorate(level, data, heart, claimCount);
-        LatexHeartNodes.maybePlaceNode(level, data, heart, claimCount);
+        if (!lowPriority) {
+            LatexHeartDecorations.maybeDecorate(level, data, heart, claimCount);
+            LatexHeartNodes.maybePlaceNode(level, data, heart, claimCount);
+        }
+        return grew;
     }
 
-    private static void cleanupDamagedOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
-        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), MAX_CLAIM_CLEANUP_CHECKS_PER_GROWTH, level.random);
+    static void cleanupDamagedOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
+        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), MAX_CLAIM_CLEANUP_CHECKS, level.random);
         for (BlockPos pos : claims) {
             if (pos.equals(heart.pos())) {
                 continue;
@@ -105,10 +109,11 @@ final class LatexHeartGrowth {
         return true;
     }
 
-    private static BlockPos nextCoverPos(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, boolean canClaimNewPositions) {
-        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.activeClaimPositionList(heart.id()), MAX_FRONTIER_CHECKS_PER_GROWTH, level.random);
+    private static BlockPos nextCoverPos(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, boolean canClaimNewPositions, boolean lowPriority) {
+        int checks = lowPriority ? MAX_LOW_PRIORITY_FRONTIER_CHECKS : MAX_FRONTIER_CHECKS;
+        List<BlockPos> claims = LatexInfestationUtil.randomSample(data.activeClaimPositionList(heart.id()), checks, level.random);
         if (claims.isEmpty()) {
-            claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), MAX_FRONTIER_CHECKS_PER_GROWTH, level.random);
+            claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), checks, level.random);
             if (claims.isEmpty()) {
                 claims = List.of(heart.pos());
             }

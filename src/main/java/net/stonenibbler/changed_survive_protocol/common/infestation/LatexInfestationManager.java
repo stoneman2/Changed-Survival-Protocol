@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
@@ -31,6 +32,14 @@ public final class LatexInfestationManager {
     private static final int COLLAPSE_HEART_SEARCH_UP = 4;
     private static final int COLLAPSE_HEART_SEARCH_DOWN = 12;
     private static final int PROTECTION_REFRESH_INTERVAL = 100;
+    private static final int MAX_HEART_GROWTHS_PER_LEVEL_TICK = 2;
+    private static final int MAX_HEART_CLEANUPS_PER_LEVEL_TICK = 1;
+    private static final int LOW_PRIORITY_GROWTH_INTERVAL_MULTIPLIER = 4;
+    private static final int FAILED_GROWTH_BACKOFF_MULTIPLIER = 4;
+    private static final int LOW_PRIORITY_FAILED_GROWTH_BACKOFF_MULTIPLIER = 8;
+    private static final int MIN_FAILED_GROWTH_BACKOFF = 20;
+    private static final int MIN_LOW_PRIORITY_FAILED_GROWTH_BACKOFF = 80;
+    private static final double LOW_PRIORITY_PLAYER_DISTANCE_SQR = 192.0D * 192.0D;
 
     private LatexInfestationManager() {
     }
@@ -328,7 +337,7 @@ public final class LatexInfestationManager {
         if (event.phase != TickEvent.Phase.END || !(event.level instanceof ServerLevel level)) {
             return;
         }
-        if (level.players().isEmpty()) {
+        if (!hasOnlinePlayers(level)) {
             return;
         }
 
@@ -340,7 +349,13 @@ public final class LatexInfestationManager {
 
         LatexInfestationSavedData data = LatexInfestationSavedData.get(level);
         long gameTime = level.getGameTime();
-        for (LatexInfestationSavedData.HeartRecord heart : data.activeHearts()) {
+        int growthsRemaining = MAX_HEART_GROWTHS_PER_LEVEL_TICK;
+        int cleanupsRemaining = MAX_HEART_CLEANUPS_PER_LEVEL_TICK;
+        List<LatexInfestationSavedData.HeartRecord> activeHearts = data.activeHearts();
+        int heartCount = activeHearts.size();
+        int startIndex = heartCount == 0 ? 0 : (int)Math.floorMod(gameTime, (long)heartCount);
+        for (int checked = 0; checked < heartCount; checked++) {
+            LatexInfestationSavedData.HeartRecord heart = activeHearts.get((startIndex + checked) % heartCount);
             try {
                 if (!level.isLoaded(heart.pos())) {
                     continue;
@@ -353,16 +368,28 @@ public final class LatexInfestationManager {
                 if (shouldRefreshHeartProtection(heart, gameTime)) {
                     LatexHeartNodes.updateHeartProtection(level, data, heart);
                 }
-                LatexHeartSignaling.tick(level, data, heart, gameTime);
+                boolean lowPriority = isLowPriorityHeart(level, heart);
+                if (!lowPriority) {
+                    LatexHeartSignaling.tick(level, data, heart, gameTime);
+                }
 
-                if (gameTime >= heart.nextGrowthTick()) {
+                if (growthsRemaining > 0 && gameTime >= heart.nextGrowthTick()) {
                     int interval = Math.max(1, level.getGameRules().getInt(CSPGameRules.LATEX_HEART_GROWTH_INTERVAL));
-                    LatexHeartGrowth.growHeart(level, data, heart);
-                    heart = data.heart(heart.id()).orElse(heart).withNextGrowthTick(gameTime + interval);
+                    boolean grew = LatexHeartGrowth.growHeart(level, data, heart, lowPriority);
+                    growthsRemaining--;
+                    if (grew && !lowPriority && cleanupsRemaining > 0) {
+                        LatexHeartGrowth.cleanupDamagedOwnedCover(level, data, heart);
+                        cleanupsRemaining--;
+                    }
+
+                    long nextGrowthTick = grew
+                            ? nextGrowthTick(level, gameTime, interval, lowPriority)
+                            : failedGrowthTick(gameTime, interval, lowPriority);
+                    heart = data.heart(heart.id()).orElse(heart).withNextGrowthTick(nextGrowthTick);
                     data.updateHeart(heart);
                     LatexHeartNodes.updateHeartProtection(level, data, heart);
                 }
-                if (gameTime >= heart.nextMobTick()) {
+                if (!lowPriority && gameTime >= heart.nextMobTick()) {
                     LatexHeartMobSpawner.spawnMob(level, data, heart);
                     int interval = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MOB_SPAWN_INTERVAL);
                     if (interval > 0) {
@@ -387,5 +414,34 @@ public final class LatexInfestationManager {
 
     private static boolean shouldRefreshHeartProtection(LatexInfestationSavedData.HeartRecord heart, long gameTime) {
         return Math.floorMod(gameTime + heart.id().getLeastSignificantBits(), PROTECTION_REFRESH_INTERVAL) == 0;
+    }
+
+    private static boolean hasOnlinePlayers(ServerLevel level) {
+        return level.getServer().getPlayerList().getPlayerCount() > 0;
+    }
+
+    private static boolean isLowPriorityHeart(ServerLevel level, LatexInfestationSavedData.HeartRecord heart) {
+        double x = heart.pos().getX() + 0.5D;
+        double y = heart.pos().getY() + 0.5D;
+        double z = heart.pos().getZ() + 0.5D;
+        for (ServerPlayer player : level.players()) {
+            if (!player.isSpectator() && player.distanceToSqr(x, y, z) <= LOW_PRIORITY_PLAYER_DISTANCE_SQR) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static long nextGrowthTick(ServerLevel level, long gameTime, int interval, boolean lowPriority) {
+        long adjustedInterval = lowPriority ? (long)interval * LOW_PRIORITY_GROWTH_INTERVAL_MULTIPLIER : interval;
+        int jitterBound = (int)Math.min(Integer.MAX_VALUE, Math.max(1L, adjustedInterval));
+        return Math.max(gameTime + 1L, gameTime + adjustedInterval / 2L + level.random.nextInt(jitterBound));
+    }
+
+    private static long failedGrowthTick(long gameTime, int interval, boolean lowPriority) {
+        long backoff = lowPriority
+                ? Math.max(MIN_LOW_PRIORITY_FAILED_GROWTH_BACKOFF, (long)interval * LOW_PRIORITY_FAILED_GROWTH_BACKOFF_MULTIPLIER)
+                : Math.max(MIN_FAILED_GROWTH_BACKOFF, (long)interval * FAILED_GROWTH_BACKOFF_MULTIPLIER);
+        return gameTime + backoff;
     }
 }

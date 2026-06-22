@@ -23,6 +23,9 @@ final class LatexHeartSeeder {
         if (!(event.getLevel() instanceof ServerLevel level) || !(event.getChunk() instanceof LevelChunk chunk) || !event.isNewChunk()) {
             return;
         }
+        if (level.players().isEmpty()) {
+            return;
+        }
         if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS) || !level.getGameRules().getBoolean(CSPGameRules.LATEX_HEART_NEW_CHUNK_SEEDING)) {
             return;
         }
@@ -31,7 +34,7 @@ final class LatexHeartSeeder {
 
     static void processPendingChunks(ServerLevel level) {
         Queue<ChunkPos> queue = PENDING_NEW_CHUNKS.get(level);
-        if (queue == null) {
+        if (queue == null || level.players().isEmpty()) {
             return;
         }
         int processed = 0;
