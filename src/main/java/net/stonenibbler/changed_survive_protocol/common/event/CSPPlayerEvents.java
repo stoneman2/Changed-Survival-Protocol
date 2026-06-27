@@ -103,7 +103,7 @@ public final class CSPPlayerEvents {
     }
 
     public static void onFoodFinished(LivingEntityUseItemEvent.Finish event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !CSPTransfurState.hasNonSuitTransfur(player)) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !CSPTransfurState.usesLucidity(player)) {
             return;
         }
         if (event.getItem().getFoodProperties(player) == null) {
@@ -131,15 +131,15 @@ public final class CSPPlayerEvents {
         }
 
         boolean transfurred = ProcessTransfur.isPlayerTransfurred(player);
-        boolean nonSuitTransfurred = CSPTransfurState.hasNonSuitTransfur(player);
+        boolean lucidityEnabled = CSPTransfurState.usesLucidity(player);
         if (!transfurred && data.hasSettledStrain()) {
             dirty |= CSPTransfurEvents.restoreSettledForm(player, data);
             transfurred = ProcessTransfur.isPlayerTransfurred(player);
-            nonSuitTransfurred = CSPTransfurState.hasNonSuitTransfur(player);
+            lucidityEnabled = CSPTransfurState.usesLucidity(player);
         }
 
-        if (data.isLucidityActive() != nonSuitTransfurred) {
-            data.setLucidityActive(nonSuitTransfurred);
+        if (data.isLucidityActive() != lucidityEnabled) {
+            data.setLucidityActive(lucidityEnabled);
             dirty = true;
         }
 
@@ -149,7 +149,7 @@ public final class CSPPlayerEvents {
                 data.setInfected(false);
                 dirty = true;
             }
-            if (nonSuitTransfurred) {
+            if (lucidityEnabled) {
                 dirty |= tickLatexNeeds(player, data);
             }
         }
@@ -187,7 +187,7 @@ public final class CSPPlayerEvents {
             }
         }
 
-        if (data.isLucidityActive() && data.getLucidity() <= 0.0D) {
+        if (lucidityEnabled && data.getLucidity() <= 0.0D) {
             FeralBodySpawner.forceCollapse(player, data);
             dirty = true;
         }

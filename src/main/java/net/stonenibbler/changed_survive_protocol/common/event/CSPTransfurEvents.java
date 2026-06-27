@@ -20,6 +20,7 @@ import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
 import net.stonenibbler.changed_survive_protocol.common.network.CSPNetwork;
+import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 
 import java.util.Collections;
 import java.util.Set;
@@ -84,7 +85,7 @@ public final class CSPTransfurEvents {
                 }
 
                 TransfurVariant<?> nextVariant = resolveVariant(data.getSettledStrainId());
-                ensureSettledState(data);
+                ensureSettledState(player, data);
                 event.setNextVariant(nextVariant);
                 event.setCanceled(true);
                 syncSafely(player, data, "settled untransfur protection");
@@ -114,9 +115,9 @@ public final class CSPTransfurEvents {
                     data.setLucidity(100.0D);
                     data.setCoverage(0.0D);
                     data.setInfected(false);
-                    data.setLucidityActive(true);
+                    data.setLucidityActive(CSPTransfurState.usesLucidity(player));
                 } else {
-                    activateLatexNeeds(data);
+                    activateLatexNeeds(player, data);
                 }
                 syncSafely(player, data, "variant change");
             });
@@ -128,7 +129,7 @@ public final class CSPTransfurEvents {
 
     public static void forceUncontrolledTransfur(ServerPlayer player, CSPPlayerData data) {
         if (ProcessTransfur.isPlayerTransfurred(player)) {
-            activateLatexNeeds(data);
+            activateLatexNeeds(player, data);
             return;
         }
 
@@ -136,7 +137,7 @@ public final class CSPTransfurEvents {
         ALLOWED_IMMEDIATE_TRANSFURS.add(player.getUUID());
         try {
             ProcessTransfur.transfur(player, ImmediateTransfurDecision.safe(variant, TransfurCause.DEFAULT, changedEntity -> {
-                activateLatexNeeds(data);
+                activateLatexNeeds(player, data);
                 data.setCoverage(0.0D);
             }));
         } finally {
@@ -159,7 +160,7 @@ public final class CSPTransfurEvents {
             ALLOWED_IMMEDIATE_TRANSFURS.add(player.getUUID());
             try {
                 ProcessTransfur.setPlayerTransfurVariant(player, variant, TransfurContext.hazard(TransfurCause.DEFAULT), 1.0F);
-                ensureSettledState(data);
+                ensureSettledState(player, data);
                 syncSafely(player, data, "settled form restore");
                 return true;
             } finally {
@@ -301,7 +302,7 @@ public final class CSPTransfurEvents {
                     return;
                 }
                 event.variant = resolveVariant(data.getSettledStrainId());
-                ensureSettledState(data);
+                ensureSettledState(player, data);
                 syncSafely(player, data, "settled variant assignment");
                 restored[0] = true;
             });
@@ -362,12 +363,12 @@ public final class CSPTransfurEvents {
         }
     }
 
-    private static void ensureSettledState(CSPPlayerData data) {
+    private static void ensureSettledState(ServerPlayer player, CSPPlayerData data) {
         data.setStrainId(data.getSettledStrainId());
         data.setCoverage(0.0D);
         data.setInfected(false);
         data.setSuppressantTicks(0);
-        data.setLucidityActive(true);
+        data.setLucidityActive(CSPTransfurState.usesLucidity(player));
         data.setStabilizedLatex(true);
         data.setUnstableLatex(false);
         data.setUnstableLatexTicks(0);
@@ -393,10 +394,10 @@ public final class CSPTransfurEvents {
         return ChangedTransfurVariants.FALLBACK_VARIANT.get();
     }
 
-    private static void activateLatexNeeds(CSPPlayerData data) {
+    private static void activateLatexNeeds(ServerPlayer player, CSPPlayerData data) {
         data.setInfected(false);
         data.setCoverage(0.0D);
-        data.setLucidityActive(true);
+        data.setLucidityActive(CSPTransfurState.usesLucidity(player));
         data.setLucidity(Math.max(data.getLucidity(), 100.0D));
         data.setUnstableLatex(!data.isStabilizedLatex());
     }

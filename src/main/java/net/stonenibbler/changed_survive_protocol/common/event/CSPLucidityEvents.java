@@ -35,7 +35,7 @@ public final class CSPLucidityEvents {
     }
 
     public static boolean tickLatexEnvironment(ServerPlayer player, CSPPlayerData data, double lucidityDrain) {
-        if (!CSPTransfurState.hasNonSuitTransfur(player) || player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() != 0) {
+        if (!CSPTransfurState.usesLucidity(player) || player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() != 0) {
             return false;
         }
 
@@ -72,7 +72,7 @@ public final class CSPLucidityEvents {
     }
 
     public static void onPlayerWakeUp(PlayerWakeUpEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !CSPTransfurState.hasNonSuitTransfur(player) || !player.isSleepingLongEnough()) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !CSPTransfurState.usesLucidity(player) || !player.isSleepingLongEnough()) {
             return;
         }
         BlockPos bedPos = player.getSleepingPos().orElse(null);
@@ -105,7 +105,7 @@ public final class CSPLucidityEvents {
     }
 
     public static void rewardAssimilation(Player player) {
-        if (!(player instanceof ServerPlayer serverPlayer) || !CSPTransfurState.hasNonSuitTransfur(player)) {
+        if (!(player instanceof ServerPlayer serverPlayer) || !CSPTransfurState.usesLucidity(player)) {
             return;
         }
         CSPCapabilities.get(serverPlayer).ifPresent(data -> {

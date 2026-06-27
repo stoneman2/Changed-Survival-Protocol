@@ -43,6 +43,10 @@ public class StabilizationDoseItem extends StrainTaggedItem {
             player.displayClientMessage(Component.translatable("message.changed_survive_protocol.stabilization.wrong_strain"), true);
             return InteractionResultHolder.fail(stack);
         }
+        if (!CSPConfig.COMMON.lucidityMechanicsEnabled.get()) {
+            player.displayClientMessage(Component.translatable("message.changed_survive_protocol.stabilization.disabled"), true);
+            return InteractionResultHolder.fail(stack);
+        }
 
         final boolean[] used = {false};
         CSPCapabilities.get(serverPlayer).ifPresent(data -> {

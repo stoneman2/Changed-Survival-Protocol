@@ -100,6 +100,7 @@
   "message.changed_survive_protocol.cure.wrong_strain": "Wrong strain; dose not used",
   "message.changed_survive_protocol.stabilization.not_latex": "You must already be latex to stabilize this strain",
   "message.changed_survive_protocol.stabilization.wrong_strain": "This dose is not attuned to your current strain",
+  "message.changed_survive_protocol.stabilization.disabled": "Lucidity mechanics are disabled",
   "message.changed_survive_protocol.stabilization.already_settled": "Your latex form is already settled",
   "message.changed_survive_protocol.stabilization.low_lucidity": "Lucidity is too low to stabilize safely",
   "message.changed_survive_protocol.stabilization.settled": "Your latex form settles permanently",

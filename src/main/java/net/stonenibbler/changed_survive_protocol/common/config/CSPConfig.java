@@ -1,8 +1,14 @@
 package net.stonenibbler.changed_survive_protocol.common.config;
 
+import net.ltxprogrammer.changed.data.RegistryElementPredicate;
+import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.registries.ForgeRegistries;
+
+import java.util.List;
+import java.util.stream.Stream;
 
 public final class CSPConfig {
     public static final ForgeConfigSpec COMMON_SPEC;
@@ -61,6 +67,7 @@ public final class CSPConfig {
         public final ForgeConfigSpec.DoubleValue minimumFallbackLatexHitCoverage;
         public final ForgeConfigSpec.DoubleValue immediateHazardCoverage;
 
+        public final ForgeConfigSpec.BooleanValue lucidityMechanicsEnabled;
         public final ForgeConfigSpec.IntValue latexNeedIntervalTicks;
         public final ForgeConfigSpec.DoubleValue stabilizedLucidityDrain;
         public final ForgeConfigSpec.DoubleValue unstableLucidityDrain;
@@ -75,12 +82,13 @@ public final class CSPConfig {
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryAquaticUnderwater;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromLatexNestSleep;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryFromAssimilation;
+        public final ForgeConfigSpec.DoubleValue stabilizationRequiredLucidity;
+        public final ForgeConfigSpec.ConfigValue<List<? extends String>> lucidityBlacklistEntityTypes;
+
         public final ForgeConfigSpec.DoubleValue culturedStrandNestAttunement;
         public final ForgeConfigSpec.DoubleValue culturedStrandAssimilationAttunement;
         public final ForgeConfigSpec.DoubleValue culturedStrandPassiveAttunement;
-        public final ForgeConfigSpec.DoubleValue stabilizationRequiredLucidity;
 
-        public final ForgeConfigSpec.BooleanValue reworkGrabEntityControls;
         public final ForgeConfigSpec.BooleanValue latexMobsAttackDifferentLatexPlayers;
         public final ForgeConfigSpec.BooleanValue changedLatexMobsIgnoreNaturalSpawnLight;
         public final ForgeConfigSpec.DoubleValue changedLatexMobsDaylightSpawnChance;
@@ -133,7 +141,8 @@ public final class CSPConfig {
             immediateHazardCoverage = builder.comment("Coverage added by immediate Changed hazards such as syringes, flasks, puddles, and latex food.").defineInRange("immediateHazardCoverage", 15.0D, 0.0D, 100.0D);
             builder.pop();
 
-            builder.push("latexNeeds");
+            builder.push("lucidity");
+            lucidityMechanicsEnabled = builder.comment("If false, lucidity mechanics are disabled for all forms.").define("lucidityMechanicsEnabled", true);
             latexNeedIntervalTicks = builder.comment("How often lucidity checks tick. 20 ticks = 1 second.").defineInRange("latexNeedIntervalTicks", 40, 1, 20 * 60 * 10);
             stabilizedLucidityDrain = builder.comment("Lucidity drain per interval while stabilized.").defineInRange("stabilizedLucidityDrain", 0.0D, 0.0D, 100.0D);
             unstableLucidityDrain = builder.comment("Base lucidity drain per interval while unstable.").defineInRange("unstableLucidityDrain", 0.1D, 0.0D, 100.0D);
@@ -152,10 +161,11 @@ public final class CSPConfig {
             culturedStrandAssimilationAttunement = builder.comment("Attunement added to a carried matching cultured strand after successful assimilation.").defineInRange("culturedStrandAssimilationAttunement", 25.0D, 0.0D, 100.0D);
             culturedStrandPassiveAttunement = builder.comment("Attunement added once per minute to a carried matching cultured strand while lucid near friendly latex.").defineInRange("culturedStrandPassiveAttunement", 1.0D, 0.0D, 100.0D);
             stabilizationRequiredLucidity = builder.comment("Minimum lucidity required to consume a stabilization dose.").defineInRange("stabilizationRequiredLucidity", 80.0D, 0.0D, 100.0D);
+            builder.comment("Blacklist lucidity. Acceptable formats: \"@modid\", \"#tag\", \"modid:entity_id\"");
+            lucidityBlacklistEntityTypes = builder.defineList("lucidityBlacklistEntityTypes", List::of, RegistryElementPredicate::isValidSyntax);
             builder.pop();
 
             builder.push("misc");
-            reworkGrabEntityControls = builder.comment("If true, Changed Grab Entity controls are reworked: left click absorbs/assimilates, right click replicates.").define("reworkGrabEntityControls", true);
             latexMobsAttackDifferentLatexPlayers = builder.comment("If true, Changed latex mobs can target transfurred players unless they share/friend the same latex type.").define("latexMobsAttackDifferentLatexPlayers", true);
             changedLatexMobsIgnoreNaturalSpawnLight = builder.comment("If true, natural Changed latex mob spawns can ignore the vanilla monster light check, allowing limited daytime or lit-area spawns while keeping biome, ground, difficulty, collision, and local cap rules.").define("changedLatexMobsIgnoreNaturalSpawnLight", false);
             changedLatexMobsDaylightSpawnChance = builder.comment("Chance for a failed natural Changed latex spawn to be retried while ignoring light. Lower values keep daytime spawns rare.").defineInRange("changedLatexMobsDaylightSpawnChance", 0.25D, 0.0D, 1.0D);
@@ -167,6 +177,10 @@ public final class CSPConfig {
             builder.push("debug");
             debugLatexHeartSpawnMessages = builder.comment("If true, sends a clickable chat message whenever a latex heart successfully spawns.").define("latexHeartSpawnMessages", false);
             builder.pop();
+        }
+
+        public Stream<RegistryElementPredicate<EntityType<?>>> getLucidityBlacklistedEntityTypes() {
+            return lucidityBlacklistEntityTypes.get().stream().map(s -> RegistryElementPredicate.parseString(ForgeRegistries.ENTITY_TYPES, s));
         }
     }
 
@@ -210,5 +224,6 @@ public final class CSPConfig {
             darkLatexMaskOverlayAlpha = builder.comment("Mask overlay alpha.").defineInRange("alpha", 0.65D, 0.0D, 1.0D);
             builder.pop();
         }
+
     }
 }

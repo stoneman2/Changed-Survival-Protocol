@@ -97,7 +97,10 @@ public final class CSPOverlays {
     }
 
     public static boolean shouldSuppressChangedDangerOverlay(Player player) {
-        return player != null && CSPClientData.get() != null && CSPConfig.CLIENT.sharedStatusMeterEnabled.get();
+        return player != null
+                && CSPClientData.get() != null
+                && CSPConfig.CLIENT.sharedStatusMeterEnabled.get()
+                && CSPTransfurState.usesLucidity(player);
     }
 
     private static boolean shouldRenderSharedMeter(Player player, SyncCSPPlayerDataPacket data) {
@@ -240,7 +243,7 @@ public final class CSPOverlays {
     }
 
     private static MeterMode meterMode(Player player, SyncCSPPlayerDataPacket data) {
-        if (CSPTransfurState.hasNonSuitLatex(player)) {
+        if (CSPTransfurState.usesLucidity(player)) {
             return MeterMode.LUCIDITY;
         }
         if (data.infected() || data.infectionPercent() > 0.0D) {
