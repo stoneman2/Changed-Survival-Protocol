@@ -8,7 +8,6 @@
     "ChangedGameRulesMixin",
     "ChangedMicroscopeBlockEntityMixin",
     "ChangedEntityTargetingMixin",
-    "GrabEntityAbilityInstanceMixin",
     "LatexCoverStateMixin",
     "ProcessTransfurMixin",
     "SpreadingLatexSubtypeMixin",
