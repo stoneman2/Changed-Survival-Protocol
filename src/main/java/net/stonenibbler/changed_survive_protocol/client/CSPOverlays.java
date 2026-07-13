@@ -45,7 +45,7 @@ public final class CSPOverlays {
 
         SyncCSPPlayerDataPacket data = CSPClientData.get();
         Player player = Minecraft.getInstance().player;
-        if (data == null || player == null) {
+        if (data == null || !CSPTransfurState.isSurvivalProtocolActive(player)) {
             return;
         }
         if (!CSPConfig.CLIENT.infectionOverlayEnabled.get()) {
@@ -53,17 +53,18 @@ public final class CSPOverlays {
         }
 
         float infection = percent(data.infectionPercent());
-        if (infection <= 0.0F || isFullyTransfurred(player, partialTick)) {
+        float criticalStart = infectionOverlayCriticalStart();
+        if (infection <= 0.0F || infection < criticalStart && isFullyTransfurred(player, partialTick)) {
             return;
         }
 
         OverlayColor color = colorForStrain(data.strainId());
-        float screenScale = Minecraft.getInstance().options.screenEffectScale().get().floatValue();
+        float screenScale = infectionOverlayScreenScale(infection, criticalStart);
         float pulse = pulse(1700L);
         float alpha = infectionAlpha(infection, pulse) * screenScale;
 
+        renderFinalInfectionWash(graphics, screenWidth, screenHeight, player, data.strainId(), infection, pulse, screenScale, color, criticalStart);
         renderFullscreenTexture(graphics, screenWidth, screenHeight, GOO_OUTLINE, color.red, color.green, color.blue, alpha);
-        renderFinalInfectionWash(graphics, screenWidth, screenHeight, player, data.strainId(), infection, pulse, screenScale, color);
     }
 
     public static void renderCoverageOverlay(Gui gui, GuiGraphics graphics, float partialTick, int screenWidth, int screenHeight) {
@@ -78,7 +79,7 @@ public final class CSPOverlays {
 
         SyncCSPPlayerDataPacket data = CSPClientData.get();
         if (shouldRenderSharedMeter(player, data)) {
-            MeterMode mode = meterMode(player, data);
+            MeterMode mode = meterMode(data);
             float meterValue = meterValue(mode, data);
             OverlayColor color = mode == MeterMode.LUCIDITY ? lucidityColor(meterValue) : colorForStrain(data.strainId());
             float screenScale = Minecraft.getInstance().options.screenEffectScale().get().floatValue();
@@ -98,17 +99,18 @@ public final class CSPOverlays {
 
     public static boolean shouldSuppressChangedDangerOverlay(Player player) {
         return player != null
+                && CSPTransfurState.isSurvivalProtocolActive(player)
                 && CSPClientData.get() != null
                 && CSPConfig.CLIENT.sharedStatusMeterEnabled.get()
-                && CSPTransfurState.usesLucidity(player);
+                && CSPClientData.get().lucidityActive();
     }
 
     private static boolean shouldRenderSharedMeter(Player player, SyncCSPPlayerDataPacket data) {
-        if (player == null || data == null || !CSPConfig.CLIENT.sharedStatusMeterEnabled.get()) {
+        if (!CSPTransfurState.isSurvivalProtocolActive(player) || data == null || !CSPConfig.CLIENT.sharedStatusMeterEnabled.get()) {
             return false;
         }
 
-        MeterMode mode = meterMode(player, data);
+        MeterMode mode = meterMode(data);
         return meterValue(mode, data) > 0.0F || mode != MeterMode.COVERAGE;
     }
 
@@ -148,7 +150,7 @@ public final class CSPOverlays {
 
     private static float infectionAlpha(float infection, float pulse) {
         float lowEnd = percent(CSPConfig.CLIENT.infectionOverlayLowEndPercent.get());
-        float criticalStart = percent(CSPConfig.CLIENT.infectionOverlayCriticalStartPercent.get());
+        float criticalStart = infectionOverlayCriticalStart();
         float lowMax = CSPConfig.CLIENT.infectionOverlayLowMaxAlpha.get().floatValue();
         float midMax = CSPConfig.CLIENT.infectionOverlayMidMaxAlpha.get().floatValue();
         float critical = CSPConfig.CLIENT.infectionOverlayCriticalAlpha.get().floatValue();
@@ -165,8 +167,7 @@ public final class CSPOverlays {
         return Mth.clamp(critical + pulse * pulseAlpha, 0.0F, 1.0F);
     }
 
-    private static void renderFinalInfectionWash(GuiGraphics graphics, int screenWidth, int screenHeight, Player player, String strainId, float infection, float pulse, float screenScale, OverlayColor fallbackColor) {
-        float criticalStart = percent(CSPConfig.CLIENT.infectionOverlayCriticalStartPercent.get());
+    private static void renderFinalInfectionWash(GuiGraphics graphics, int screenWidth, int screenHeight, Player player, String strainId, float infection, float pulse, float screenScale, OverlayColor fallbackColor, float criticalStart) {
         if (infection <= criticalStart) {
             return;
         }
@@ -180,6 +181,15 @@ public final class CSPOverlays {
         }
 
         graphics.fill(0, 0, screenWidth, screenHeight, toArgb(infectionWashColor(player, strainId, fallbackColor), alpha));
+    }
+
+    private static float infectionOverlayCriticalStart() {
+        return percent(CSPConfig.CLIENT.infectionOverlayCriticalStartPercent.get());
+    }
+
+    private static float infectionOverlayScreenScale(float infection, float criticalStart) {
+        float screenScale = Minecraft.getInstance().options.screenEffectScale().get().floatValue();
+        return infection >= criticalStart ? Math.max(screenScale, 0.25F) : screenScale;
     }
 
     private static OverlayColor lucidityColor(float lucidity) {
@@ -242,8 +252,8 @@ public final class CSPOverlays {
         return progress * progress * progress * (progress * (progress * 6.0F - 15.0F) + 10.0F);
     }
 
-    private static MeterMode meterMode(Player player, SyncCSPPlayerDataPacket data) {
-        if (CSPTransfurState.usesLucidity(player)) {
+    private static MeterMode meterMode(SyncCSPPlayerDataPacket data) {
+        if (data.lucidityActive()) {
             return MeterMode.LUCIDITY;
         }
         if (data.infected() || data.infectionPercent() > 0.0D) {

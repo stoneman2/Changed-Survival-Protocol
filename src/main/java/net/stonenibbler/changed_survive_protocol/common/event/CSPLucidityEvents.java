@@ -35,7 +35,7 @@ public final class CSPLucidityEvents {
     }
 
     public static boolean tickLatexEnvironment(ServerPlayer player, CSPPlayerData data, double lucidityDrain) {
-        if (!CSPTransfurState.usesLucidity(player) || player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() != 0) {
+        if (!CSPTransfurState.usesLucidity(player, data) || player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() != 0) {
             return false;
         }
 
@@ -84,6 +84,9 @@ public final class CSPLucidityEvents {
             return;
         }
         CSPCapabilities.get(player).ifPresent(data -> {
+            if (!CSPTransfurState.usesLucidity(player, data)) {
+                return;
+            }
             data.addLucidity(CSPConfig.COMMON.lucidityRecoveryFromLatexNestSleep.get());
             attuneCarriedCulturedStrands(player, CSPConfig.COMMON.culturedStrandNestAttunement.get());
             CSPNetwork.sync(player, data);
@@ -109,6 +112,9 @@ public final class CSPLucidityEvents {
             return;
         }
         CSPCapabilities.get(serverPlayer).ifPresent(data -> {
+            if (!CSPTransfurState.usesLucidity(serverPlayer, data)) {
+                return;
+            }
             data.addLucidity(CSPConfig.COMMON.lucidityRecoveryFromAssimilation.get());
             attuneCarriedCulturedStrands(serverPlayer, CSPConfig.COMMON.culturedStrandAssimilationAttunement.get());
             CSPNetwork.sync(serverPlayer, data);
