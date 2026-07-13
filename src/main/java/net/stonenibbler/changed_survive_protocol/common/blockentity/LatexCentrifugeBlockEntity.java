@@ -30,6 +30,7 @@ public class LatexCentrifugeBlockEntity extends BaseContainerBlockEntity impleme
     public static final int SLOT_OUTPUT = 4;
     private static final int CONTAINER_SIZE = 5;
     private static final int PROCESS_TIME = 240;
+    private static final int SAVE_INTERVAL = 20;
 
     private NonNullList<ItemStack> items = NonNullList.withSize(CONTAINER_SIZE, ItemStack.EMPTY);
     private int progress;
@@ -144,6 +145,9 @@ public class LatexCentrifugeBlockEntity extends BaseContainerBlockEntity impleme
     @Override
     public void clearContent() {
         items.clear();
+        progress = 0;
+        recipeMode = 0;
+        setChanged();
     }
 
     @Override
@@ -196,8 +200,10 @@ public class LatexCentrifugeBlockEntity extends BaseContainerBlockEntity impleme
             }
             blockEntity.compactEmptyInputs();
             blockEntity.progress = 0;
+            setChanged(level, pos, state);
+        } else if (blockEntity.progress % SAVE_INTERVAL == 0) {
+            setChanged(level, pos, state);
         }
-        setChanged(level, pos, state);
     }
 
     private Recipe currentRecipe() {

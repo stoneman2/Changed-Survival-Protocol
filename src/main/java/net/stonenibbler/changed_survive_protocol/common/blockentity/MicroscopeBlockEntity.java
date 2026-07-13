@@ -27,6 +27,7 @@ public class MicroscopeBlockEntity extends BaseContainerBlockEntity implements S
     public static final int SLOT_INPUT = 0;
     public static final int SLOT_OUTPUT = 1;
     private static final int CONTAINER_SIZE = 2;
+    private static final int SAVE_INTERVAL = 20;
 
     private NonNullList<ItemStack> items = NonNullList.withSize(CONTAINER_SIZE, ItemStack.EMPTY);
     private int progress;
@@ -127,6 +128,8 @@ public class MicroscopeBlockEntity extends BaseContainerBlockEntity implements S
     @Override
     public void clearContent() {
         items.clear();
+        progress = 0;
+        setChanged();
     }
 
     @Override
@@ -178,8 +181,10 @@ public class MicroscopeBlockEntity extends BaseContainerBlockEntity implements S
                 }
             }
             blockEntity.progress = 0;
+            setChanged(level, pos, state);
+        } else if (blockEntity.progress % SAVE_INTERVAL == 0) {
+            setChanged(level, pos, state);
         }
-        setChanged(level, pos, state);
     }
 
     private static int processTime() {
