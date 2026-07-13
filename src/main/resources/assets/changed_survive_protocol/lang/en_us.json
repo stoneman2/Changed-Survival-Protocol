@@ -12,7 +12,7 @@
   "block.changed_survive_protocol.dark_latex_node": "Dark Latex Node",
   "block.changed_survive_protocol.white_latex_node": "White Latex Node",
   "gamerule.csp:doLatexHeartInfestations": "Latex Heart Infestations",
-  "gamerule.csp:doLatexHeartInfestations.description": "Allows CSP Latex Hearts to seed and grow in the world. Off by default.",
+  "gamerule.csp:doLatexHeartInfestations.description": "Allows CSP Latex Hearts to seed and grow in the world. On by default.",
   "gamerule.csp:latexHeartNewChunkSeeding": "Latex Heart New Chunk Seeding",
   "gamerule.csp:latexHeartNewChunkSeeding.description": "Allows new chunks to roll for Latex Heart placement after the chunk finishes loading.",
   "gamerule.csp:latexHeartLoadedChunkSeeding": "Latex Heart Loaded Chunk Seeding",

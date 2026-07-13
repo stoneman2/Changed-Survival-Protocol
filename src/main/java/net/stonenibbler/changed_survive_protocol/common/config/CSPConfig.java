@@ -57,21 +57,11 @@ public final class CSPConfig {
 
         public final ForgeConfigSpec.IntValue microscopeProcessTimeTicks;
 
-        public final ForgeConfigSpec.DoubleValue strongLatexHitCoverage;
-        public final ForgeConfigSpec.DoubleValue weakLatexHitCoverage;
-        public final ForgeConfigSpec.DoubleValue transfurProgressCoverageMultiplier;
-        public final ForgeConfigSpec.DoubleValue absorptionCoverageBonus;
-        public final ForgeConfigSpec.DoubleValue grabCoverageMultiplier;
-        public final ForgeConfigSpec.DoubleValue minimumGrabCoverage;
-        public final ForgeConfigSpec.DoubleValue fallbackLatexHitCoverageMultiplier;
-        public final ForgeConfigSpec.DoubleValue minimumFallbackLatexHitCoverage;
         public final ForgeConfigSpec.DoubleValue immediateHazardCoverage;
 
         public final ForgeConfigSpec.BooleanValue lucidityMechanicsEnabled;
         public final ForgeConfigSpec.IntValue latexNeedIntervalTicks;
-        public final ForgeConfigSpec.DoubleValue stabilizedLucidityDrain;
         public final ForgeConfigSpec.DoubleValue unstableLucidityDrain;
-        public final ForgeConfigSpec.BooleanValue creativeModeLucidityDrain;
         public final ForgeConfigSpec.DoubleValue maxUnstableLucidityMultiplier;
         public final ForgeConfigSpec.IntValue unstableTicksForMaxMultiplier;
         public final ForgeConfigSpec.DoubleValue lucidityRecoveryPerFoodNutrition;
@@ -104,7 +94,7 @@ public final class CSPConfig {
             passiveCoverageDecayIntervalTicks = builder.comment("How often passive coverage decay runs. 20 ticks = 1 second.").defineInRange("passiveCoverageDecayIntervalTicks", 40, 1, 20 * 60 * 10);
             passiveCoverageDecayAmount = builder.comment("Coverage removed on each passive decay tick.").defineInRange("passiveCoverageDecayAmount", 0.05D, 0.0D, 100.0D);
             coverageInfectionThreshold = builder.comment("Coverage required to begin infection. Default is 100: fully coated means infected.").defineInRange("coverageInfectionThreshold", 100.0D, 1.0D, 100.0D);
-            infectionStartPercent = builder.comment("Infection percent assigned when coverage reaches the infection threshold.").defineInRange("infectionStartPercent", 1.0D, 0.0D, 100.0D);
+            infectionStartPercent = builder.comment("Infection percent assigned when coverage reaches the infection threshold.").defineInRange("infectionStartPercent", 1.0D, 1.0D, 100.0D);
             builder.pop();
 
             builder.push("infection");
@@ -130,23 +120,13 @@ public final class CSPConfig {
             builder.pop();
 
             builder.push("exposure");
-            strongLatexHitCoverage = builder.comment("Coverage added by a strong Changed latex hit.").defineInRange("strongLatexHitCoverage", 8.0D, 0.0D, 100.0D);
-            weakLatexHitCoverage = builder.comment("Coverage added by a weak Changed latex hit.").defineInRange("weakLatexHitCoverage", 4.0D, 0.0D, 100.0D);
-            transfurProgressCoverageMultiplier = builder.comment("Coverage added per point of Changed transfur progress requested by the source.").defineInRange("transfurProgressCoverageMultiplier", 1.25D, 0.0D, 100.0D);
-            absorptionCoverageBonus = builder.comment("Extra coverage for absorption-style latex attacks.").defineInRange("absorptionCoverageBonus", 3.0D, 0.0D, 100.0D);
-            grabCoverageMultiplier = builder.comment("Multiplier for passive coverage from Changed grab progression.").defineInRange("grabCoverageMultiplier", 0.08D, 0.0D, 100.0D);
-            minimumGrabCoverage = builder.comment("Minimum coverage applied by grab progression ticks.").defineInRange("minimumGrabCoverage", 0.35D, 0.0D, 100.0D);
-            fallbackLatexHitCoverageMultiplier = builder.comment("Coverage added from generic latex hurt fallback per damage point.").defineInRange("fallbackLatexHitCoverageMultiplier", 1.5D, 0.0D, 100.0D);
-            minimumFallbackLatexHitCoverage = builder.comment("Minimum coverage added by generic latex hurt fallback.").defineInRange("minimumFallbackLatexHitCoverage", 2.0D, 0.0D, 100.0D);
             immediateHazardCoverage = builder.comment("Coverage added by immediate Changed hazards such as syringes, flasks, puddles, and latex food.").defineInRange("immediateHazardCoverage", 15.0D, 0.0D, 100.0D);
             builder.pop();
 
             builder.push("lucidity");
             lucidityMechanicsEnabled = builder.comment("If false, lucidity mechanics are disabled for all forms.").define("lucidityMechanicsEnabled", true);
             latexNeedIntervalTicks = builder.comment("How often lucidity checks tick. 20 ticks = 1 second.").defineInRange("latexNeedIntervalTicks", 40, 1, 20 * 60 * 10);
-            stabilizedLucidityDrain = builder.comment("Lucidity drain per interval while stabilized.").defineInRange("stabilizedLucidityDrain", 0.0D, 0.0D, 100.0D);
             unstableLucidityDrain = builder.comment("Base lucidity drain per interval while unstable.").defineInRange("unstableLucidityDrain", 0.1D, 0.0D, 100.0D);
-            creativeModeLucidityDrain = builder.comment("If true, creative-mode latex players still lose lucidity. If false, creative mode freezes lucidity drain.").define("creativeModeLucidityDrain", false);
             maxUnstableLucidityMultiplier = builder.comment("Lucidity drains faster as instability increases. This is the maximum multiplier.").defineInRange("maxUnstableLucidityMultiplier", 7.5D, 1.0D, 100.0D);
             unstableTicksForMaxMultiplier = builder.comment("How many ticks does it take for lucidity to reach the maximum drain multiplier.").defineInRange("unstableTicksForMaxMultiplier", 24000, 1, 20 * 60 * 60 * 24);
             lucidityRecoveryPerFoodNutrition = builder.comment("Lucidity restored when a latex player finishes eating food, per nutrition point.").defineInRange("lucidityRecoveryPerFoodNutrition", 0.4D, 0.0D, 100.0D);
@@ -162,7 +142,7 @@ public final class CSPConfig {
             culturedStrandPassiveAttunement = builder.comment("Attunement added once per minute to a carried matching cultured strand while lucid near friendly latex.").defineInRange("culturedStrandPassiveAttunement", 1.0D, 0.0D, 100.0D);
             stabilizationRequiredLucidity = builder.comment("Minimum lucidity required to consume a stabilization dose.").defineInRange("stabilizationRequiredLucidity", 80.0D, 0.0D, 100.0D);
             builder.comment("Blacklist lucidity. Acceptable formats: \"@modid\", \"#tag\", \"modid:entity_id\"");
-            lucidityBlacklistEntityTypes = builder.defineList("lucidityBlacklistEntityTypes", List::of, RegistryElementPredicate::isValidSyntax);
+            lucidityBlacklistEntityTypes = builder.defineList("lucidityBlacklistEntityTypes", List.of("#changed_survive_protocol:lucidity_blacklist"), RegistryElementPredicate::isValidSyntax);
             builder.pop();
 
             builder.push("misc");
