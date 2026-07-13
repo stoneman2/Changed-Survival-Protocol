@@ -9,7 +9,7 @@ import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
 
 public final class CSPNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ChangedSurviveProtocol.MODID, "network"),
             () -> PROTOCOL_VERSION,

@@ -5,40 +5,22 @@ import net.minecraftforge.network.NetworkEvent;
 import net.stonenibbler.changed_survive_protocol.client.CSPClientData;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
 
-import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 public record SyncCSPPlayerDataPacket(double infectionPercent,
                                       double coverage,
                                       boolean infected,
                                       String strainId,
-                                      int suppressantTicks,
                                       double lucidity,
-                                      boolean lucidityActive,
-                                      boolean unstableLatex,
-                                       boolean stabilizedLatex,
-                                       int unstableLatexTicks,
-                                       double lucidityDrainMultiplier,
-                                       String settledStrainId,
-                                       Optional<UUID> feralSelfUuid,
-                                       int collapseCount) {
+                                      boolean lucidityActive) {
     public static SyncCSPPlayerDataPacket from(CSPPlayerData data) {
         return new SyncCSPPlayerDataPacket(
                 data.getInfectionPercent(),
                 data.getCoverage(),
                 data.isInfected(),
                 data.getStrainId(),
-                data.getSuppressantTicks(),
                 data.getLucidity(),
-                data.isLucidityActive(),
-                data.isUnstableLatex(),
-                data.isStabilizedLatex(),
-                data.getUnstableLatexTicks(),
-                data.getLucidityDrainMultiplier(),
-                data.getSettledStrainId(),
-                Optional.ofNullable(data.getFeralSelfUuid()),
-                data.getCollapseCount());
+                data.isLucidityActive());
     }
 
     public static void encode(SyncCSPPlayerDataPacket packet, FriendlyByteBuf buffer) {
@@ -46,16 +28,8 @@ public record SyncCSPPlayerDataPacket(double infectionPercent,
         buffer.writeDouble(packet.coverage);
         buffer.writeBoolean(packet.infected);
         buffer.writeUtf(packet.strainId);
-        buffer.writeVarInt(packet.suppressantTicks);
         buffer.writeDouble(packet.lucidity);
         buffer.writeBoolean(packet.lucidityActive);
-        buffer.writeBoolean(packet.unstableLatex);
-        buffer.writeBoolean(packet.stabilizedLatex);
-        buffer.writeVarInt(packet.unstableLatexTicks);
-        buffer.writeDouble(packet.lucidityDrainMultiplier);
-        buffer.writeUtf(packet.settledStrainId);
-        buffer.writeOptional(packet.feralSelfUuid, FriendlyByteBuf::writeUUID);
-        buffer.writeVarInt(packet.collapseCount);
     }
 
     public static SyncCSPPlayerDataPacket decode(FriendlyByteBuf buffer) {
@@ -64,16 +38,8 @@ public record SyncCSPPlayerDataPacket(double infectionPercent,
                 buffer.readDouble(),
                 buffer.readBoolean(),
                 buffer.readUtf(),
-                buffer.readVarInt(),
                 buffer.readDouble(),
-                buffer.readBoolean(),
-                buffer.readBoolean(),
-                buffer.readBoolean(),
-                buffer.readVarInt(),
-                buffer.readDouble(),
-                buffer.readUtf(),
-                buffer.readOptional(FriendlyByteBuf::readUUID),
-                buffer.readVarInt());
+                buffer.readBoolean());
     }
 
     public static void handle(SyncCSPPlayerDataPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
