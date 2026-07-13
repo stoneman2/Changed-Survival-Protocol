@@ -26,15 +26,12 @@ final class PlayerSecretions {
     }
 
     static void tick(ServerLevel level, LatexInfestationSavedData data) {
-        List<LatexInfestationSavedData.PlayerSecretionRecord> secretions = data.playerSecretions();
+        List<LatexInfestationSavedData.PlayerSecretionRecord> secretions = data.playerSecretions(DECAY_CHECK_LIMIT, level.random);
         if (secretions.isEmpty()) {
             return;
         }
 
-        int start = level.random.nextInt(secretions.size());
-        int checked = Math.min(secretions.size(), DECAY_CHECK_LIMIT);
-        for (int i = 0; i < checked; i++) {
-            LatexInfestationSavedData.PlayerSecretionRecord secretion = secretions.get((start + i) % secretions.size());
+        for (LatexInfestationSavedData.PlayerSecretionRecord secretion : secretions) {
             BlockPos pos = secretion.pos();
             if (!level.isLoaded(pos)) {
                 continue;

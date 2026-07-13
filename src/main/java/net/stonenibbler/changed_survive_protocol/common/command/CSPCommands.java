@@ -15,10 +15,13 @@ import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
 import net.stonenibbler.changed_survive_protocol.common.event.CSPPlayerEvents;
 import net.stonenibbler.changed_survive_protocol.common.event.CSPTransfurEvents;
+import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 
 public final class CSPCommands {
     private static final SimpleCommandExceptionType MISSING_PLAYER_DATA = new SimpleCommandExceptionType(
             Component.literal("CSP player data is not available. Try rejoining; report this if it persists."));
+    private static final SimpleCommandExceptionType INVALID_LUCIDITY_FORM = new SimpleCommandExceptionType(
+            Component.literal("This command requires a non-suit transfur that uses CSP lucidity."));
 
     private CSPCommands() {
     }
@@ -39,15 +42,17 @@ public final class CSPCommands {
                         CSPPlayerData::setLucidity,
                         (data) -> data.setLucidity(100.0D)))
                 .then(Commands.literal("stabilize")
-                        .executes(context -> mutate(context.getSource(), data -> {
+                        .executes(context -> mutateLucidity(context.getSource(), data -> {
                             data.setStabilizedLatex(true);
+                            data.setLucidityActive(false);
                             data.setUnstableLatex(false);
                             data.setUnstableLatexTicks(0);
                             data.setLucidityDrainMultiplier(1.0D);
                         }, "stabilized latex")))
                 .then(Commands.literal("unstabilize")
-                        .executes(context -> mutate(context.getSource(), data -> {
+                        .executes(context -> mutateLucidity(context.getSource(), data -> {
                             data.setStabilizedLatex(false);
+                            data.setLucidityActive(true);
                             data.setUnstableLatex(true);
                         }, "unstabilized latex")))
                 .then(Commands.literal("forcecollapse")
@@ -77,6 +82,15 @@ public final class CSPCommands {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int mutateLucidity(CommandSourceStack source, Mutator mutator, String message) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        CSPPlayerData data = lucidityData(player);
+        mutator.mutate(data);
+        CSPPlayerEvents.sync(player);
+        source.sendSuccess(() -> Component.literal(message), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int mutate(CommandSourceStack source, Mutator mutator, String message) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         CSPPlayerData data = data(player);
@@ -88,7 +102,7 @@ public final class CSPCommands {
 
     private static int forceCollapse(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        CSPPlayerData data = data(player);
+        CSPPlayerData data = lucidityData(player);
         FeralBodySpawner.forceCollapse(player, data);
         source.sendSuccess(() -> Component.literal("forced lucidity collapse"), false);
         return Command.SINGLE_SUCCESS;
@@ -107,6 +121,13 @@ public final class CSPCommands {
 
     private static CSPPlayerData data(ServerPlayer player) throws CommandSyntaxException {
         return CSPCapabilities.get(player).resolve().orElseThrow(MISSING_PLAYER_DATA::create);
+    }
+
+    private static CSPPlayerData lucidityData(ServerPlayer player) throws CommandSyntaxException {
+        if (!CSPTransfurState.usesLucidity(player)) {
+            throw INVALID_LUCIDITY_FORM.create();
+        }
+        return data(player);
     }
 
     private static String format(double value) {

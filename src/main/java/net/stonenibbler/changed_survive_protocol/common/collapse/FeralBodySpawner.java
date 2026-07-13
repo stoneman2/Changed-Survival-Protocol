@@ -9,18 +9,24 @@ import net.ltxprogrammer.changed.process.ProcessTransfur;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.damage.CSPDamageSources;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPPlayerData;
+import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.infestation.LatexHeartBlock;
 import net.stonenibbler.changed_survive_protocol.common.infestation.LatexInfestationManager;
 import net.stonenibbler.changed_survive_protocol.common.latex.LatexStrandManager;
 import net.stonenibbler.changed_survive_protocol.common.network.CSPNetwork;
 
 import java.util.UUID;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 
 public final class FeralBodySpawner {
     public static final String ORIGINAL_PLAYER_UUID = ChangedSurviveProtocol.MODID + ":original_player";
@@ -44,14 +50,17 @@ public final class FeralBodySpawner {
 
         data.incrementCollapseCount();
         ChangedEntity feral = findExistingFeral(player, data);
-        if (feral == null) {
+        if (feral == null && data.getFeralSelfUuid() == null) {
             feral = spawnFeral(player, variant, data);
         } else {
-            strengthenExistingFeral(feral, data);
+            if (feral != null) {
+                strengthenExistingFeral(feral, data);
+            }
         }
 
         if (feral != null) {
             data.setFeralSelfUuid(feral.getUUID());
+            data.setFeralSelfLocation(feral.level().dimension().location().toString(), feral.blockPosition());
         }
 
         if (player.level() instanceof ServerLevel level) {
@@ -116,7 +125,25 @@ public final class FeralBodySpawner {
 
     private static ChangedEntity findExistingFeral(ServerPlayer player, CSPPlayerData data) {
         UUID feralUuid = data.getFeralSelfUuid();
-        if (feralUuid == null || !(player.level() instanceof ServerLevel level)) {
+        if (feralUuid == null) {
+            return null;
+        }
+
+        for (ServerLevel candidate : player.getServer().getAllLevels()) {
+            Entity loadedEntity = candidate.getEntity(feralUuid);
+            if (loadedEntity instanceof ChangedEntity changedEntity && loadedEntity.isAlive()) {
+                data.setFeralSelfLocation(candidate.dimension().location().toString(), loadedEntity.blockPosition());
+                return changedEntity;
+            }
+        }
+
+        ServerLevel level = resolveFeralLevel(player, data);
+        if (level == null) {
+            data.clearFeralSelf();
+            return null;
+        }
+
+        if (data.getFeralSelfPos() != null && !level.isLoaded(data.getFeralSelfPos())) {
             return null;
         }
 
@@ -124,7 +151,45 @@ public final class FeralBodySpawner {
         if (entity instanceof ChangedEntity changedEntity && entity.isAlive()) {
             return changedEntity;
         }
+        if (data.getFeralSelfPos() == null) {
+            return null;
+        }
+        data.clearFeralSelf();
         return null;
+    }
+
+    private static ServerLevel resolveFeralLevel(ServerPlayer player, CSPPlayerData data) {
+        ResourceLocation dimensionId = ResourceLocation.tryParse(data.getFeralSelfDimension());
+        if (dimensionId == null) {
+            return player.serverLevel();
+        }
+        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, dimensionId);
+        return player.getServer().getLevel(dimension);
+    }
+
+    public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        updateTrackedLocation(event.getEntity());
+    }
+
+    public static void onEntityLeaveLevel(EntityLeaveLevelEvent event) {
+        updateTrackedLocation(event.getEntity());
+    }
+
+    private static void updateTrackedLocation(Entity entity) {
+        if (!(entity instanceof ChangedEntity) || !entity.getPersistentData().hasUUID(ORIGINAL_PLAYER_UUID) || !(entity.level() instanceof ServerLevel level)) {
+            return;
+        }
+        ServerPlayer owner = level.getServer().getPlayerList().getPlayer(entity.getPersistentData().getUUID(ORIGINAL_PLAYER_UUID));
+        if (owner == null) {
+            return;
+        }
+        CSPCapabilities.get(owner).ifPresent(data -> {
+            if (data.getFeralSelfUuid() != null && !data.getFeralSelfUuid().equals(entity.getUUID())) {
+                return;
+            }
+            data.setFeralSelfUuid(entity.getUUID());
+            data.setFeralSelfLocation(level.dimension().location().toString(), entity.blockPosition());
+        });
     }
 
     private static void strengthenExistingFeral(ChangedEntity feral, CSPPlayerData data) {

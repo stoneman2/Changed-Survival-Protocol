@@ -20,10 +20,10 @@ import net.stonenibbler.changed_survive_protocol.common.util.CSPTransfurState;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 
 public final class CSPPlayerEvents {
-    private static final Map<UUID, CSPPlayerData> DEATH_SNAPSHOTS = new ConcurrentHashMap<>();
+    private static final Map<UUID, CSPPlayerData> DEATH_SNAPSHOTS = new HashMap<>();
 
     private CSPPlayerEvents() {
     }
@@ -62,7 +62,13 @@ public final class CSPPlayerEvents {
     }
 
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        DEATH_SNAPSHOTS.remove(event.getEntity().getUUID());
         sync(event.getEntity());
+    }
+
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        DEATH_SNAPSHOTS.remove(event.getEntity().getUUID());
+        CSPTransfurEvents.onPlayerLoggedOut(event.getEntity().getUUID());
     }
 
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
@@ -78,6 +84,7 @@ public final class CSPPlayerEvents {
             return;
         }
 
+        CSPTransfurEvents.expirePendingTotemForm(serverPlayer);
         CSPCapabilities.get(serverPlayer).ifPresent(data -> {
             boolean dirty = tick(serverPlayer, data);
             if (dirty || serverPlayer.tickCount % 100 == 0) {
@@ -118,6 +125,9 @@ public final class CSPPlayerEvents {
         }
 
         CSPCapabilities.get(player).ifPresent(data -> {
+            if (!CSPTransfurState.usesLucidity(player, data)) {
+                return;
+            }
             data.addLucidity(recovered);
             CSPNetwork.sync(player, data);
         });
@@ -126,16 +136,24 @@ public final class CSPPlayerEvents {
     private static boolean tick(ServerPlayer player, CSPPlayerData data) {
         boolean dirty = false;
 
-        if (data.tickSuppressant()) {
-            dirty = true;
+        if (!CSPTransfurState.isSurvivalProtocolActive(player)) {
+            if (data.isLucidityActive()) {
+                data.setLucidityActive(false);
+                return true;
+            }
+            return false;
         }
 
-        boolean transfurred = ProcessTransfur.isPlayerTransfurred(player);
-        boolean lucidityEnabled = CSPTransfurState.usesLucidity(player);
-        if (!transfurred && data.hasSettledStrain()) {
+        boolean suppressedThisTick = data.getSuppressantTicks() > 0;
+        data.tickSuppressant();
+
+        boolean anyTransfurred = ProcessTransfur.isPlayerTransfurred(player);
+        boolean transfurred = CSPTransfurState.hasNonSuitTransfur(player);
+        boolean lucidityEnabled = CSPTransfurState.usesLucidity(player, data);
+        if (!anyTransfurred && data.hasSettledStrain()) {
             dirty |= CSPTransfurEvents.restoreSettledForm(player, data);
-            transfurred = ProcessTransfur.isPlayerTransfurred(player);
-            lucidityEnabled = CSPTransfurState.usesLucidity(player);
+            transfurred = CSPTransfurState.hasNonSuitTransfur(player);
+            lucidityEnabled = CSPTransfurState.usesLucidity(player, data);
         }
 
         if (data.isLucidityActive() != lucidityEnabled) {
@@ -175,7 +193,7 @@ public final class CSPPlayerEvents {
                     dirty = true;
                 }
 
-                if (data.getInfectionPercent() < 100.0D && data.getSuppressantTicks() <= 0 && player.tickCount % CSPConfig.COMMON.infectionGrowthIntervalTicks.get() == 0) {
+                if (data.getInfectionPercent() < 100.0D && !suppressedThisTick && player.tickCount % CSPConfig.COMMON.infectionGrowthIntervalTicks.get() == 0) {
                     data.addInfection(CSPConfig.COMMON.infectionGrowthPerInterval.get());
                     dirty = true;
                 }
@@ -196,39 +214,27 @@ public final class CSPPlayerEvents {
     }
 
     private static boolean tickLatexNeeds(ServerPlayer player, CSPPlayerData data) {
-        boolean dirty = false;
-
-        if (player.isSpectator()) {
+        if (data.isStabilizedLatex()) {
             return false;
         }
 
-        if (!shouldDrainLucidity(player)) {
-            dirty |= CSPLucidityEvents.tickLatexEnvironment(player, data, 0.0D);
-            return dirty;
-        }
+        boolean dirty = false;
 
-        if (!data.isStabilizedLatex()) {
-            if (!data.isUnstableLatex()) {
-                data.setUnstableLatex(true);
-                dirty = true;
-            }
-            data.addUnstableLatexTick();
+        if (!data.isUnstableLatex()) {
+            data.setUnstableLatex(true);
+            dirty = true;
+        }
+        data.addUnstableLatexTick();
+
+        if (player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() == 0) {
             double multiplierRange = CSPConfig.COMMON.maxUnstableLucidityMultiplier.get() - 1.0D;
             double multiplierProgress = Math.min(1.0D, data.getUnstableLatexTicks() / (double)CSPConfig.COMMON.unstableTicksForMaxMultiplier.get());
             data.setLucidityDrainMultiplier(1.0D + multiplierRange * multiplierProgress);
-            dirty = true;
-        }
-
-        if (player.tickCount % CSPConfig.COMMON.latexNeedIntervalTicks.get() == 0) {
-            double lucidityDrain = data.isStabilizedLatex() ? CSPConfig.COMMON.stabilizedLucidityDrain.get() : CSPConfig.COMMON.unstableLucidityDrain.get() * data.getLucidityDrainMultiplier();
+            double lucidityDrain = CSPConfig.COMMON.unstableLucidityDrain.get() * data.getLucidityDrainMultiplier();
             dirty |= CSPLucidityEvents.tickLatexEnvironment(player, data, lucidityDrain);
         }
 
         return dirty;
-    }
-
-    private static boolean shouldDrainLucidity(ServerPlayer player) {
-        return !player.isSpectator() && (!player.isCreative() || CSPConfig.COMMON.creativeModeLucidityDrain.get());
     }
 
     private static void startInfection(CSPPlayerData data) {

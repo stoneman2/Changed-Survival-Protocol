@@ -50,18 +50,27 @@ public class SamplingScalpelItem extends Item {
                 player.displayClientMessage(Component.translatable("message.changed_survive_protocol.scalpel.no_strain"), true);
                 return;
             }
-            float minHealth = CSPConfig.COMMON.sampleExtractionMinHealth.get().floatValue();
-            if (player.getHealth() <= minHealth) {
-                player.displayClientMessage(Component.translatable("message.changed_survive_protocol.scalpel.too_weak"), true);
-                return;
+            String strainId = data.getStrainId();
+            float configuredDamage = CSPConfig.COMMON.sampleExtractionDamage.get().floatValue();
+            if (configuredDamage > 0.0F) {
+                float minHealth = CSPConfig.COMMON.sampleExtractionMinHealth.get().floatValue();
+                if (player.getHealth() <= minHealth) {
+                    player.displayClientMessage(Component.translatable("message.changed_survive_protocol.scalpel.too_weak"), true);
+                    return;
+                }
+                float damage = Math.min(configuredDamage, player.getHealth() - minHealth);
+                if (!player.hurt(ChangedDamageSources.BLOODLOSS.source(player.level().registryAccess()), damage)) {
+                    return;
+                }
             }
-            float damage = Math.min(CSPConfig.COMMON.sampleExtractionDamage.get().floatValue(), player.getHealth() - minHealth);
-            if (damage > 0.0F) {
-                player.hurt(ChangedDamageSources.BLOODLOSS.source(player.level().registryAccess()), damage);
+            double remainingInfection = data.getInfectionPercent() - CSPConfig.COMMON.sampleExtractionInfectionRemoval.get();
+            if (remainingInfection <= 0.0D) {
+                data.clearInfection();
+            } else {
+                data.setInfectionPercent(remainingInfection);
             }
-            data.setInfectionPercent(data.getInfectionPercent() - CSPConfig.COMMON.sampleExtractionInfectionRemoval.get());
             CSPNetwork.sync(serverPlayer, data);
-            CSPInventoryUtil.giveOrDrop(player, CSPStrainItems.withStrain(new ItemStack(CSPItems.RAW_LATEX_SAMPLE.get()), data.getStrainId()));
+            CSPInventoryUtil.giveOrDrop(player, CSPStrainItems.withStrain(new ItemStack(CSPItems.RAW_LATEX_SAMPLE.get()), strainId));
             used[0] = true;
         });
 

@@ -18,7 +18,7 @@ public class LatexNodeBlock extends Block {
     private final LatexHeartBlock.Kind kind;
 
     public LatexNodeBlock(LatexHeartBlock.Kind kind, Properties properties) {
-        super(properties.randomTicks());
+        super(properties);
         this.kind = kind;
     }
 
