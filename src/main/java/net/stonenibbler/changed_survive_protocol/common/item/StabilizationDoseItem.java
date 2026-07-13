@@ -62,6 +62,7 @@ public class StabilizationDoseItem extends StrainTaggedItem {
             data.setSettledStrainId(strainId);
             data.setStrainId(strainId);
             data.setStabilizedLatex(true);
+            data.setLucidityActive(false);
             data.setUnstableLatex(false);
             data.setUnstableLatexTicks(0);
             data.setLucidityDrainMultiplier(1.0D);
