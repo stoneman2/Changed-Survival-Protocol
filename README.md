@@ -1,13 +1,13 @@
 This is the repository for the mod **Changed-Survival-Protocol**.
-The mod is currently on version **1.0.0** and requires Changed-Minecraft-Mod version **0.15.4+**. 
+The mod is currently on version **1.2.0** and requires Changed-Minecraft-Mod version **0.15.4+**.
 
 ## How can I compile the mod?
 
-Without a IDE and assuming you have `git` installed and Java 17 as your default java:
+Without an IDE, and assuming you have `git` installed and Java 17 as your default Java:
 - Clone the repo `git clone https://github.com/stoneman2/Changed-Survival-Protocol.git`
 - Navigate into the directory `cd Changed-Survival-Protocol`
-- Run Gradlew `./gradlew build` (Linux/MacOS) or `gradlew build` (Windows)
-- Once completed, check builds/libs for the results.
+- Run Gradle with `./gradlew build` on Linux or macOS, or `gradlew.bat build` on Windows
+- Once completed, check `build/libs` for the result.
 
 ## Changed: Survival Protocol
 An addon to the Changed minecraft mod prioritizing survival gameplay. This mod adds and overrides many features within the original mod.
