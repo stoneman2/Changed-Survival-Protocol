@@ -18,6 +18,10 @@ public final class CSPClientData {
         return current;
     }
 
+    public static void clear() {
+        current = null;
+    }
+
     public static boolean isDarkLatexMaskOverlayVisible() {
         return darkLatexMaskOverlayVisible;
     }

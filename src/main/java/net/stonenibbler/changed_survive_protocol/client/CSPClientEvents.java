@@ -7,9 +7,11 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
@@ -31,6 +33,8 @@ public final class CSPClientEvents {
         modBus.addListener(CSPClientEvents::registerReloadListeners);
         modBus.addListener(CSPClientEvents::clientSetup);
         MinecraftForge.EVENT_BUS.addListener(CSPClientEvents::onClientTick);
+        MinecraftForge.EVENT_BUS.addListener(CSPClientEvents::onClientLogout);
+        MinecraftForge.EVENT_BUS.addListener(CSPClientEvents::onLevelUnload);
     }
 
     private static void clientSetup(FMLClientSetupEvent event) {
@@ -61,6 +65,16 @@ public final class CSPClientEvents {
 
         while (CSPKeyMappings.TOGGLE_DARK_LATEX_MASK.consumeClick()) {
             CSPClientData.toggleDarkLatexMaskOverlay();
+        }
+    }
+
+    private static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        CSPClientData.clear();
+    }
+
+    private static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel().isClientSide()) {
+            CSPClientData.clear();
         }
     }
 }
