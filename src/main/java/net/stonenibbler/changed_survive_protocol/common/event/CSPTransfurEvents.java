@@ -14,7 +14,9 @@ import net.ltxprogrammer.changed.process.ProcessTransfur;
 import net.ltxprogrammer.changed.process.TransfurEvents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
@@ -32,9 +34,43 @@ public final class CSPTransfurEvents {
     private static final Set<UUID> ALLOWED_IMMEDIATE_TRANSFURS = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final Set<UUID> COMMAND_UNTRANSFUR_RESETS = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final ConcurrentHashMap<UUID, Long> BLOCKED_PROGRESS_COMPLETIONS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, PendingTotemForm> PENDING_TOTEM_FORMS = new ConcurrentHashMap<>();
     private static final ThreadLocal<ProgressExposureContext> ACTIVE_PROGRESS_CONTEXT = new ThreadLocal<>();
+    private static final ResourceLocation CHANGED_ADDON_TRANSFUR_TOTEM = ResourceLocation.fromNamespaceAndPath("changed_addon", "transfur_totem");
+    private static final ResourceLocation LEGACY_PURO_TOTEM_FORM = ResourceLocation.fromNamespaceAndPath("changed_addon", "form_puro_kind/female");
+    private static final ResourceLocation CURRENT_PURO_TOTEM_FORM = ResourceLocation.fromNamespaceAndPath("changed_addon", "form_latex_puro_kind/female");
+    private static final String TRANSFUR_TOTEM_FORM_TAG = "form";
 
     private CSPTransfurEvents() {
+    }
+
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        PENDING_TOTEM_FORMS.remove(player.getUUID());
+        ItemStack stack = event.getItemStack();
+        if (player.isShiftKeyDown()
+                || ProcessTransfur.isPlayerTransfurred(player)
+                || player.getCooldowns().isOnCooldown(stack.getItem())
+                || !CHANGED_ADDON_TRANSFUR_TOTEM.equals(ForgeRegistries.ITEMS.getKey(stack.getItem()))) {
+            return;
+        }
+
+        var tag = stack.getTag();
+        ResourceLocation formId = tag == null ? null : ResourceLocation.tryParse(tag.getString(TRANSFUR_TOTEM_FORM_TAG));
+        if (formId == null) {
+            return;
+        }
+        if (LEGACY_PURO_TOTEM_FORM.equals(formId)) {
+            formId = CURRENT_PURO_TOTEM_FORM;
+        }
+        if (ChangedRegistry.TRANSFUR_VARIANT.get().getValue(formId) == null) {
+            return;
+        }
+
+        PENDING_TOTEM_FORMS.put(player.getUUID(), new PendingTotemForm(formId, player.level().getGameTime()));
     }
 
     public static void onEntityVariantAssigned(ProcessTransfur.EntityVariantAssigned event) {
@@ -59,7 +95,24 @@ public final class CSPTransfurEvents {
             return;
         }
 
+        var currentVariant = ProcessTransfur.getPlayerTransfurVariant(player);
+        if (currentVariant != null && currentVariant.isTemporaryFromSuit()) {
+            return;
+        }
+
         resetAfterUntransfur(player);
+    }
+
+    public static void onImmediateTransfurDecision(TransfurEvents.ImmediateTransfurDecisionEvent event) {
+        if (!(event.entity instanceof ServerPlayer player)
+                || event.getOriginalDecision().initialKeepConscious()
+                || isImmediateTransfurAllowed(player)
+                || !canRedirectTransfur(player)) {
+            return;
+        }
+
+        addExposure(player, event.getTransfurVariant().getFormId().toString(), CSPConfig.COMMON.immediateHazardCoverage.get());
+        event.setCanceled(true);
     }
 
     public static void onKeepConscious(ProcessTransfur.KeepConsciousEvent event) {
@@ -105,6 +158,11 @@ public final class CSPTransfurEvents {
             CSPCapabilities.get(player).ifPresent(data -> {
                 if (event.newVariant != null) {
                     data.setStrainId(event.newVariant.getFormId().toString());
+                    if (consumePendingTotemForm(player, event.newVariant)) {
+                        data.setTotemFormId(event.newVariant.getFormId().toString());
+                    } else if (data.hasTotemForm() && !data.getTotemFormId().equals(event.newVariant.getFormId().toString())) {
+                        data.clearTotemForm();
+                    }
                 }
 
                 if (event.context != null && event.context.cause() == TransfurCause.STASIS_CHAMBER) {
@@ -115,7 +173,7 @@ public final class CSPTransfurEvents {
                     data.setLucidity(100.0D);
                     data.setCoverage(0.0D);
                     data.setInfected(false);
-                    data.setLucidityActive(CSPTransfurState.usesLucidity(player));
+                    data.setLucidityActive(false);
                 } else {
                     activateLatexNeeds(player, data);
                 }
@@ -128,9 +186,13 @@ public final class CSPTransfurEvents {
     }
 
     public static void forceUncontrolledTransfur(ServerPlayer player, CSPPlayerData data) {
-        if (ProcessTransfur.isPlayerTransfurred(player)) {
-            activateLatexNeeds(player, data);
-            return;
+        var currentVariant = ProcessTransfur.getPlayerTransfurVariant(player);
+        if (currentVariant != null) {
+            if (!currentVariant.isTemporaryFromSuit()) {
+                activateLatexNeeds(player, data);
+                return;
+            }
+            ProcessTransfur.removePlayerTransfurVariant(player);
         }
 
         TransfurVariant<?> variant = resolveVariant(data.getStrainId());
@@ -177,6 +239,20 @@ public final class CSPTransfurEvents {
         return ALLOWED_IMMEDIATE_TRANSFURS.contains(player.getUUID());
     }
 
+    public static void onPlayerLoggedOut(UUID playerId) {
+        ALLOWED_IMMEDIATE_TRANSFURS.remove(playerId);
+        COMMAND_UNTRANSFUR_RESETS.remove(playerId);
+        BLOCKED_PROGRESS_COMPLETIONS.remove(playerId);
+        PENDING_TOTEM_FORMS.remove(playerId);
+    }
+
+    public static void expirePendingTotemForm(ServerPlayer player) {
+        PendingTotemForm pending = PENDING_TOTEM_FORMS.get(player.getUUID());
+        if (pending != null && pending.gameTime != player.level().getGameTime()) {
+            PENDING_TOTEM_FORMS.remove(player.getUUID(), pending);
+        }
+    }
+
     public static boolean tryHandleDirectProgress(ServerPlayer player, float progress) {
         if (!canRedirectTransfur(player)) {
             return false;
@@ -193,17 +269,52 @@ public final class CSPTransfurEvents {
             BLOCKED_PROGRESS_COMPLETIONS.put(player.getUUID(), player.level().getGameTime());
         }
 
-        addExposure(player, context == null ? null : context.source, context == null ? "" : context.strainId, coverageFromProgressDelta(player, delta));
+        addExposure(player, context == null ? "" : context.strainId, coverageFromProgressDelta(player, delta));
         clearChangedProgress(player);
         return true;
     }
 
     public static AssimilationBehavior wrapLatexProgressBehavior(ServerPlayer player, LatexAssimilationDecision<?> decision, AssimilationBehavior behavior) {
-        return wrapProgressBehavior(player, behavior, new ProgressExposureContext(sourceFrom(decision.context()), decision.transfurVariant().getFormId().toString()));
+        return wrapProgressBehavior(player, behavior, new ProgressExposureContext(decision.transfurVariant().getFormId().toString()));
     }
 
     public static AssimilationBehavior wrapNonLatexProgressBehavior(ServerPlayer player, NonLatexAssimilationDecision<?> decision, AssimilationBehavior behavior) {
-        return wrapProgressBehavior(player, behavior, new ProgressExposureContext(decision.source() == null ? null : decision.source().getEntity(), decision.transfurVariant().getFormId().toString()));
+        return wrapProgressBehavior(player, behavior, new ProgressExposureContext(decision.transfurVariant().getFormId().toString()));
+    }
+
+    public static AssimilationBehavior suitLatexExposureBehavior(ServerPlayer player, LatexAssimilationDecision<?> decision) {
+        return exposureOnlyBehavior(player, decision.transfurVariant().getFormId().toString(), decision.transfurProgress());
+    }
+
+    public static AssimilationBehavior suitNonLatexExposureBehavior(ServerPlayer player, NonLatexAssimilationDecision<?> decision) {
+        return exposureOnlyBehavior(player, decision.transfurVariant().getFormId().toString(), decision.transfurProgress());
+    }
+
+    private static AssimilationBehavior exposureOnlyBehavior(ServerPlayer player, String strainId, float progress) {
+        return new AssimilationBehavior() {
+            @Override
+            public void stepAssimilate() {
+                double remaining = Math.max(0.0D, ProcessTransfur.getEntityTransfurTolerance(player) - ProcessTransfur.getPlayerTransfurProgress(player));
+                float appliedProgress = (float)Math.max(0.0D, Math.min(remaining, progress));
+                addExposure(player, strainId, coverageFromProgressDelta(player, appliedProgress));
+                clearChangedProgress(player);
+            }
+
+            @Override
+            public boolean willAssimilate() {
+                return false;
+            }
+
+            @Override
+            public AssimilationBehavior appendTransfurListener(Consumer<IAbstractChangedEntity> transfurLogic) {
+                return this;
+            }
+        };
+    }
+
+    public static boolean hasTemporarySuit(ServerPlayer player) {
+        var variant = ProcessTransfur.getPlayerTransfurVariant(player);
+        return variant != null && variant.isTemporaryFromSuit() && canRedirectTransfur(player);
     }
 
     private static AssimilationBehavior wrapProgressBehavior(ServerPlayer player, AssimilationBehavior behavior, ProgressExposureContext context) {
@@ -217,7 +328,7 @@ public final class CSPTransfurEvents {
 
                 if (behavior.willAssimilate()) {
                     double remaining = Math.max(0.0D, ProcessTransfur.getEntityTransfurTolerance(player) - ProcessTransfur.getPlayerTransfurProgress(player));
-                    addExposure(player, context.source, context.strainId, coverageFromProgressDelta(player, (float)remaining));
+                    addExposure(player, context.strainId, coverageFromProgressDelta(player, (float)remaining));
                     clearChangedProgress(player);
                     return;
                 }
@@ -243,7 +354,10 @@ public final class CSPTransfurEvents {
     }
 
     private static boolean canRedirectTransfur(ServerPlayer player) {
-        return player.connection != null && !player.level().isClientSide && !player.isCreative() && !player.isSpectator() && !ProcessTransfur.isPlayerTransfurred(player);
+        return player.connection != null
+                && !player.level().isClientSide
+                && CSPTransfurState.isSurvivalProtocolActive(player)
+                && !CSPTransfurState.hasNonSuitTransfur(player);
     }
 
     private static void clearChangedProgress(ServerPlayer player) {
@@ -252,22 +366,8 @@ public final class CSPTransfurEvents {
         }
     }
 
-    private static LivingEntity sourceFrom(TransfurContext context) {
-        if (context == null || context.source() == null) {
-            return null;
-        }
-        return context.source().map(source -> source.getEntity(), source -> source.getEntity());
-    }
-
-    private static void addExposure(ServerPlayer player, LivingEntity source, String strainId, double amount) {
-        UUID sourceUuid = source == null ? null : source.getUUID();
-        long gameTime = player.level().getGameTime();
-
+    private static void addExposure(ServerPlayer player, String strainId, double amount) {
         CSPCapabilities.get(player).ifPresent(data -> {
-            if (!data.shouldAcceptExposure(gameTime, sourceUuid)) {
-                return;
-            }
-
             if (!strainId.isBlank()) {
                 data.setStrainId(strainId);
             }
@@ -346,6 +446,7 @@ public final class CSPTransfurEvents {
                 data.setLucidity(100.0D);
                 data.setCoverage(0.0D);
                 data.setInfected(false);
+                data.clearTotemForm();
                 syncSafely(player, data, "untransfur cleanup");
             });
         } catch (RuntimeException exception) {
@@ -368,8 +469,8 @@ public final class CSPTransfurEvents {
         data.setCoverage(0.0D);
         data.setInfected(false);
         data.setSuppressantTicks(0);
-        data.setLucidityActive(CSPTransfurState.usesLucidity(player));
         data.setStabilizedLatex(true);
+        data.setLucidityActive(false);
         data.setUnstableLatex(false);
         data.setUnstableLatexTicks(0);
         data.setLucidityDrainMultiplier(1.0D);
@@ -397,14 +498,29 @@ public final class CSPTransfurEvents {
     private static void activateLatexNeeds(ServerPlayer player, CSPPlayerData data) {
         data.setInfected(false);
         data.setCoverage(0.0D);
-        data.setLucidityActive(CSPTransfurState.usesLucidity(player));
+        boolean lucidityActive = CSPTransfurState.usesLucidity(player, data);
+        data.setLucidityActive(lucidityActive);
         data.setLucidity(Math.max(data.getLucidity(), 100.0D));
-        data.setUnstableLatex(!data.isStabilizedLatex());
+        data.setUnstableLatex(lucidityActive);
+    }
+
+    private static boolean consumePendingTotemForm(ServerPlayer player, TransfurVariant<?> variant) {
+        PendingTotemForm pending = PENDING_TOTEM_FORMS.remove(player.getUUID());
+        return pending != null
+                && pending.gameTime == player.level().getGameTime()
+                && pending.formId.equals(variant.getFormId());
     }
 
     private static boolean hasBlockedProgressCompletion(ServerPlayer player) {
         Long gameTime = BLOCKED_PROGRESS_COMPLETIONS.get(player.getUUID());
-        return gameTime != null && gameTime == player.level().getGameTime();
+        if (gameTime == null) {
+            return false;
+        }
+        if (gameTime != player.level().getGameTime()) {
+            BLOCKED_PROGRESS_COMPLETIONS.remove(player.getUUID(), gameTime);
+            return false;
+        }
+        return true;
     }
 
     private static boolean consumeBlockedProgressCompletion(ServerPlayer player) {
@@ -415,6 +531,9 @@ public final class CSPTransfurEvents {
         return true;
     }
 
-    private record ProgressExposureContext(LivingEntity source, String strainId) {
+    private record ProgressExposureContext(String strainId) {
+    }
+
+    private record PendingTotemForm(ResourceLocation formId, long gameTime) {
     }
 }

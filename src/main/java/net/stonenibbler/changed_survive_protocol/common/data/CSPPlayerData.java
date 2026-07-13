@@ -1,6 +1,7 @@
 package net.stonenibbler.changed_survive_protocol.common.data;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.BlockPos;
 
 import java.util.UUID;
 
@@ -17,11 +18,11 @@ public class CSPPlayerData {
     private int unstableLatexTicks;
     private double lucidityDrainMultiplier = 1.0D;
     private String settledStrainId = "";
+    private String totemFormId = "";
     private UUID feralSelfUuid;
+    private String feralSelfDimension = "";
+    private BlockPos feralSelfPos;
     private int collapseCount;
-
-    private long lastExposureGameTime = Long.MIN_VALUE;
-    private UUID lastExposureSource;
 
     public void copyFrom(CSPPlayerData other) {
         infectionPercent = other.infectionPercent;
@@ -36,10 +37,11 @@ public class CSPPlayerData {
         unstableLatexTicks = other.unstableLatexTicks;
         lucidityDrainMultiplier = other.lucidityDrainMultiplier;
         settledStrainId = other.settledStrainId;
+        totemFormId = other.totemFormId;
         feralSelfUuid = other.feralSelfUuid;
+        feralSelfDimension = other.feralSelfDimension;
+        feralSelfPos = other.feralSelfPos;
         collapseCount = other.collapseCount;
-        lastExposureGameTime = other.lastExposureGameTime;
-        lastExposureSource = other.lastExposureSource;
     }
 
     public void reset() {
@@ -55,10 +57,11 @@ public class CSPPlayerData {
         unstableLatexTicks = 0;
         lucidityDrainMultiplier = 1.0D;
         settledStrainId = "";
+        totemFormId = "";
         feralSelfUuid = null;
+        feralSelfDimension = "";
+        feralSelfPos = null;
         collapseCount = 0;
-        lastExposureGameTime = Long.MIN_VALUE;
-        lastExposureSource = null;
     }
 
     public CompoundTag save() {
@@ -75,8 +78,17 @@ public class CSPPlayerData {
         tag.putInt("unstableLatexTicks", unstableLatexTicks);
         tag.putDouble("lucidityDrainMultiplier", lucidityDrainMultiplier);
         tag.putString("settledStrainId", settledStrainId);
+        if (!totemFormId.isBlank()) {
+            tag.putString("totemFormId", totemFormId);
+        }
         if (feralSelfUuid != null) {
             tag.putUUID("feralSelfUuid", feralSelfUuid);
+        }
+        if (!feralSelfDimension.isBlank()) {
+            tag.putString("feralSelfDimension", feralSelfDimension);
+        }
+        if (feralSelfPos != null) {
+            tag.putLong("feralSelfPos", feralSelfPos.asLong());
         }
         tag.putInt("collapseCount", collapseCount);
         return tag;
@@ -85,7 +97,7 @@ public class CSPPlayerData {
     public void load(CompoundTag tag) {
         infectionPercent = clampPercent(tag.getDouble("infectionPercent"));
         coverage = clampPercent(tag.getDouble("coverage"));
-        infected = tag.getBoolean("infected");
+        infected = infectionPercent > 0.0D;
         strainId = tag.getString("strainId");
         suppressantTicks = Math.max(0, tag.getInt("suppressantTicks"));
         lucidity = tag.contains("lucidity") ? clampPercent(tag.getDouble("lucidity")) : 100.0D;
@@ -95,7 +107,10 @@ public class CSPPlayerData {
         unstableLatexTicks = Math.max(0, tag.getInt("unstableLatexTicks"));
         lucidityDrainMultiplier = tag.contains("lucidityDrainMultiplier") ? Math.max(0.0D, tag.getDouble("lucidityDrainMultiplier")) : 1.0D;
         settledStrainId = tag.getString("settledStrainId");
+        totemFormId = tag.getString("totemFormId");
         feralSelfUuid = tag.hasUUID("feralSelfUuid") ? tag.getUUID("feralSelfUuid") : null;
+        feralSelfDimension = tag.getString("feralSelfDimension");
+        feralSelfPos = tag.contains("feralSelfPos") ? BlockPos.of(tag.getLong("feralSelfPos")) : null;
         collapseCount = Math.max(0, tag.getInt("collapseCount"));
     }
 
@@ -240,12 +255,47 @@ public class CSPPlayerData {
         return !settledStrainId.isBlank();
     }
 
+    public String getTotemFormId() {
+        return totemFormId;
+    }
+
+    public void setTotemFormId(String totemFormId) {
+        this.totemFormId = totemFormId == null ? "" : totemFormId;
+    }
+
+    public boolean hasTotemForm() {
+        return !totemFormId.isBlank();
+    }
+
+    public void clearTotemForm() {
+        totemFormId = "";
+    }
+
     public UUID getFeralSelfUuid() {
         return feralSelfUuid;
     }
 
     public void setFeralSelfUuid(UUID feralSelfUuid) {
         this.feralSelfUuid = feralSelfUuid;
+    }
+
+    public String getFeralSelfDimension() {
+        return feralSelfDimension;
+    }
+
+    public BlockPos getFeralSelfPos() {
+        return feralSelfPos;
+    }
+
+    public void setFeralSelfLocation(String dimension, BlockPos pos) {
+        feralSelfDimension = dimension == null ? "" : dimension;
+        feralSelfPos = pos == null ? null : pos.immutable();
+    }
+
+    public void clearFeralSelf() {
+        feralSelfUuid = null;
+        feralSelfDimension = "";
+        feralSelfPos = null;
     }
 
     public int getCollapseCount() {
@@ -258,15 +308,6 @@ public class CSPPlayerData {
 
     public void incrementCollapseCount() {
         collapseCount++;
-    }
-
-    public boolean shouldAcceptExposure(long gameTime, UUID sourceUuid) {
-        if (gameTime == lastExposureGameTime && (sourceUuid == null ? lastExposureSource == null : sourceUuid.equals(lastExposureSource))) {
-            return false;
-        }
-        lastExposureGameTime = gameTime;
-        lastExposureSource = sourceUuid;
-        return true;
     }
 
     private static double clampPercent(double value) {

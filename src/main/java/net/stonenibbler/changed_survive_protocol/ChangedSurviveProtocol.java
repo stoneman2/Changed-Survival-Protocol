@@ -11,6 +11,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.stonenibbler.changed_survive_protocol.client.CSPClientEvents;
 import net.stonenibbler.changed_survive_protocol.common.command.CSPCommands;
+import net.stonenibbler.changed_survive_protocol.common.collapse.FeralBodySpawner;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.data.CSPCapabilities;
 import net.stonenibbler.changed_survive_protocol.common.event.CSPLucidityEvents;
@@ -50,9 +51,10 @@ public class ChangedSurviveProtocol {
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> CSPClientEvents.register(modBus));
 
         MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.entity.Entity.class, CSPPlayerEvents::attachCapabilities);
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPPlayerEvents::onPlayerDeath);
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, CSPPlayerEvents::onPlayerDeath);
         MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerClone);
         MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerLoggedIn);
+        MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerLoggedOut);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, CSPPlayerEvents::onPlayerRespawn);
         MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerChangedDimension);
         MinecraftForge.EVENT_BUS.addListener(CSPPlayerEvents::onPlayerTick);
@@ -65,17 +67,24 @@ public class ChangedSurviveProtocol {
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPPlayerEvents::onLivingChangeTarget);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPTransfurEvents::onUntransfurPlayer);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPTransfurEvents::onKeepConscious);
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, CSPTransfurEvents::onImmediateTransfurDecision);
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, CSPTransfurEvents::onRightClickItem);
         MinecraftForge.EVENT_BUS.addListener(CSPTransfurEvents::onEntityVariantAssigned);
         MinecraftForge.EVENT_BUS.addListener(CSPTransfurEvents::onChangedVariant);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onLevelTick);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onChunkLoad);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onEntityLeaveLevel);
+        MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onEntityJoinLevel);
+        MinecraftForge.EVENT_BUS.addListener(FeralBodySpawner::onEntityLeaveLevel);
+        MinecraftForge.EVENT_BUS.addListener(FeralBodySpawner::onEntityJoinLevel);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onLivingDeath);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LatexInfestationManager::onSpawnPlacementCheck);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LatexInfestationManager::onExplosionDetonate);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.HIGHEST, LatexInfestationManager::onBlockBreak);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onBlockPlace);
         MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onNeighborNotify);
+        MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onLevelUnload);
+        MinecraftForge.EVENT_BUS.addListener(LatexInfestationManager::onServerStopped);
         MinecraftForge.EVENT_BUS.addListener(CSPCommands::register);
     }
 
