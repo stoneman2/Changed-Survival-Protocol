@@ -4,6 +4,7 @@ import net.ltxprogrammer.changed.entity.latex.SpreadingLatexType;
 import net.ltxprogrammer.changed.init.ChangedEntities;
 import net.ltxprogrammer.changed.world.LatexCoverState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 final class LatexHeartMobSpawner {
+    private static final String HEART_OWNER_TAG = ChangedSurviveProtocol.MODID + ":latex_heart_owner";
     private static final int MOB_SPAWN_POSITION_ATTEMPTS = 48;
     private static final double MOB_SPAWN_PLAYER_MIN_DISTANCE_SQR = 36.0D;
     private static final double MOB_SPAWN_PLAYER_MAX_DISTANCE_SQR = 48.0D * 48.0D;
@@ -31,6 +33,9 @@ final class LatexHeartMobSpawner {
     }
 
     static void spawnMob(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
+        if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)) {
+            return;
+        }
         int claimCount = data.claimCount(heart.id());
         int minClaims = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MOB_SPAWN_MIN_CLAIMS);
         if (!level.getGameRules().getBoolean(CSPGameRules.LATEX_HEART_MOB_SPAWNING) || level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MOB_SPAWN_INTERVAL) <= 0 || minClaims <= 0 || claimCount < minClaims) {
@@ -57,6 +62,7 @@ final class LatexHeartMobSpawner {
         }
         mob.moveTo(spawnSpot.x(), spawnSpot.y(), spawnSpot.z(), level.random.nextFloat() * 360.0F, 0.0F);
         mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnSpot.blockPos()), MobSpawnType.MOB_SUMMONED, null, null);
+        mob.getPersistentData().putUUID(HEART_OWNER_TAG, heart.id());
         if (level.addFreshEntity(mob)) {
             data.addMob(mob.getUUID(), heart.id());
             ChangedSurviveProtocol.LOGGER.debug("Latex heart {} spawned {} at {}", heart.id(), type, spawnSpot.blockPos());
@@ -125,6 +131,9 @@ final class LatexHeartMobSpawner {
     private static MobSpawnSpot findMobSpawnSpotFromClaims(ServerLevel level, List<BlockPos> claims, LatexInfestationSavedData.HeartRecord heart, Mob mob) {
         for (int i = 0; i < MOB_SPAWN_POSITION_ATTEMPTS && !claims.isEmpty(); i++) {
             BlockPos claim = claims.get(level.random.nextInt(claims.size()));
+            if (!level.isLoaded(claim)) {
+                continue;
+            }
             MobSpawnSpot spot = spawnSpotFromClaim(level, heart, claim);
             if (spot != null && canFitMob(level, mob, spot)) {
                 return spot;
@@ -146,6 +155,9 @@ final class LatexHeartMobSpawner {
     }
 
     private static MobSpawnSpot spawnSpotFromClaim(ServerLevel level, LatexInfestationSavedData.HeartRecord heart, BlockPos pos) {
+        if (!level.isLoaded(pos)) {
+            return null;
+        }
         BlockState state = level.getBlockState(pos);
         if (state.is(LatexInfestationBlocks.sourceBlock(heart.kind())) || state.getBlock() instanceof LatexHeartBlock || state.getBlock() instanceof LatexNodeBlock) {
             return spawnSpotAbove(level, pos);
@@ -218,9 +230,36 @@ final class LatexHeartMobSpawner {
     private static void cleanupTrackedMobs(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
         for (UUID mobId : data.mobsFor(heart.id())) {
             Entity entity = level.getEntity(mobId);
+            if (entity == null) {
+                continue;
+            }
             if (!(entity instanceof Mob mob) || !mob.isAlive() || !isInfestationMobType(mob.getType(), heart.kind()) || mob.distanceToSqr(heart.pos().getX() + 0.5D, heart.pos().getY() + 0.5D, heart.pos().getZ() + 0.5D) > MOB_TRACKING_MAX_DISTANCE_SQR) {
                 data.removeMob(mobId);
+                entity.getPersistentData().remove(HEART_OWNER_TAG);
+            } else if (!mob.getPersistentData().hasUUID(HEART_OWNER_TAG)) {
+                mob.getPersistentData().putUUID(HEART_OWNER_TAG, heart.id());
             }
+        }
+    }
+
+    static void reconcileTrackedMob(LatexInfestationSavedData data, Entity entity) {
+        CompoundTag persistentData = entity.getPersistentData();
+        UUID persistedOwner = persistentData.hasUUID(HEART_OWNER_TAG) ? persistentData.getUUID(HEART_OWNER_TAG) : null;
+        UUID owner = persistedOwner != null ? persistedOwner : data.mobOwner(entity.getUUID()).orElse(null);
+        if (owner == null) {
+            return;
+        }
+
+        LatexInfestationSavedData.HeartRecord heart = data.heart(owner).orElse(null);
+        if (!(entity instanceof Mob mob) || heart == null || !isInfestationMobType(mob.getType(), heart.kind())) {
+            data.removeMob(entity.getUUID());
+            persistentData.remove(HEART_OWNER_TAG);
+            return;
+        }
+
+        data.addMob(entity.getUUID(), owner);
+        if (persistedOwner == null) {
+            persistentData.putUUID(HEART_OWNER_TAG, owner);
         }
     }
 

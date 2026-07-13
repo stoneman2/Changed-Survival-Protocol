@@ -10,11 +10,13 @@ import net.stonenibbler.changed_survive_protocol.common.gamerule.CSPGameRules;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Queue;
+import java.util.Set;
 
 final class LatexHeartSeeder {
-    private static final Map<ServerLevel, Queue<ChunkPos>> PENDING_NEW_CHUNKS = new HashMap<>();
+    private static final int MAX_PENDING_NEW_CHUNKS_PER_LEVEL = 1024;
+    private static final Map<ServerLevel, PendingChunks> PENDING_NEW_CHUNKS = new HashMap<>();
 
     private LatexHeartSeeder() {
     }
@@ -29,11 +31,14 @@ final class LatexHeartSeeder {
         if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS) || !level.getGameRules().getBoolean(CSPGameRules.LATEX_HEART_NEW_CHUNK_SEEDING)) {
             return;
         }
-        PENDING_NEW_CHUNKS.computeIfAbsent(level, ignored -> new ArrayDeque<>()).add(chunk.getPos());
+        PendingChunks pending = PENDING_NEW_CHUNKS.computeIfAbsent(level, ignored -> new PendingChunks());
+        if (!pending.add(chunk.getPos())) {
+            trySeedChunk(level, LatexInfestationSavedData.get(level), chunk.getPos(), true);
+        }
     }
 
     static void processPendingChunks(ServerLevel level) {
-        Queue<ChunkPos> queue = PENDING_NEW_CHUNKS.get(level);
+        PendingChunks queue = PENDING_NEW_CHUNKS.get(level);
         if (queue == null || level.players().isEmpty()) {
             return;
         }
@@ -71,11 +76,15 @@ final class LatexHeartSeeder {
         if (!hasActiveHeartCapacity(level, data)) {
             return;
         }
-        if (newChunk && !data.markChunkGenerated(chunk)) {
+        if (!level.hasChunk(chunk.x, chunk.z)) {
             return;
         }
-        int chance = newChunk ? level.getGameRules().getInt(CSPGameRules.LATEX_HEART_NEW_CHUNK_CHANCE) : level.getGameRules().getInt(CSPGameRules.LATEX_HEART_LOADED_CHUNK_CHANCE);
-        if (chance <= 0 || level.random.nextInt(chance) != 0) {
+        if (newChunk) {
+            int chance = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_NEW_CHUNK_CHANCE);
+            if (chance <= 0 || level.random.nextInt(chance) != 0) {
+                return;
+            }
+        } else if (level.getGameRules().getInt(CSPGameRules.LATEX_HEART_LOADED_CHUNK_CHANCE) <= 0) {
             return;
         }
 
@@ -109,5 +118,40 @@ final class LatexHeartSeeder {
 
     private static LatexHeartBlock.Kind randomHeartKind(RandomSource random) {
         return random.nextBoolean() ? LatexHeartBlock.Kind.DARK : LatexHeartBlock.Kind.WHITE;
+    }
+
+    static void onLevelUnload(ServerLevel level) {
+        PENDING_NEW_CHUNKS.remove(level);
+    }
+
+    static void onServerStopped() {
+        PENDING_NEW_CHUNKS.clear();
+    }
+
+    private static final class PendingChunks {
+        private final ArrayDeque<ChunkPos> queue = new ArrayDeque<>();
+        private final Set<ChunkPos> queued = new HashSet<>();
+
+        private boolean add(ChunkPos pos) {
+            if (queued.contains(pos)) {
+                return true;
+            }
+            if (queue.size() >= MAX_PENDING_NEW_CHUNKS_PER_LEVEL) {
+                return false;
+            }
+            queued.add(pos);
+            queue.add(pos);
+            return true;
+        }
+
+        private ChunkPos poll() {
+            ChunkPos pos = queue.poll();
+            queued.remove(pos);
+            return pos;
+        }
+
+        private boolean isEmpty() {
+            return queue.isEmpty();
+        }
     }
 }

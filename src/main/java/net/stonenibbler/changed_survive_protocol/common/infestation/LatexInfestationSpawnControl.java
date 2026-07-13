@@ -99,6 +99,9 @@ final class LatexInfestationSpawnControl {
     private static boolean canSpawnOnChangedLatexGround(ServerLevel level, BlockPos pos) {
         BlockPos checkPos = pos;
         for (int i = 0; i <= CHANGED_SPAWN_BLOCK_CHECK_DEPTH; i++) {
+            if (!level.isLoaded(checkPos)) {
+                return false;
+            }
             BlockState state = level.getBlockState(checkPos);
             if (state.is(ChangedTags.Blocks.LATEX_SPAWNABLE_ON)) {
                 return true;

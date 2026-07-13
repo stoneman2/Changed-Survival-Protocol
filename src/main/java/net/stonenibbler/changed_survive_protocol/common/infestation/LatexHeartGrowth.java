@@ -51,7 +51,7 @@ final class LatexHeartGrowth {
     static void cleanupDamagedOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
         List<BlockPos> claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), MAX_CLAIM_CLEANUP_CHECKS, level.random);
         for (BlockPos pos : claims) {
-            if (pos.equals(heart.pos())) {
+            if (pos.equals(heart.pos()) || !level.isLoaded(pos)) {
                 continue;
             }
             if (!LatexCoverRules.isOwnedCover(level, data, heart, pos)) {
@@ -120,6 +120,9 @@ final class LatexHeartGrowth {
         }
 
         for (BlockPos origin : claims) {
+            if (!level.isLoaded(origin)) {
+                continue;
+            }
             if (!origin.equals(heart.pos()) && !LatexCoverRules.isOwnedCover(level, data, heart, origin)) {
                 LatexInfestationManager.onLatexCoverRemoved(level, origin);
                 continue;
@@ -170,6 +173,9 @@ final class LatexHeartGrowth {
     }
 
     private static void addWrappedSurfaceCandidates(ServerLevel level, BlockPos origin, List<BlockPos> candidates) {
+        if (!level.isLoaded(origin)) {
+            return;
+        }
         LatexCoverState coverState = LatexCoverState.getAt(level, origin);
         if (coverState.isAir()) {
             return;

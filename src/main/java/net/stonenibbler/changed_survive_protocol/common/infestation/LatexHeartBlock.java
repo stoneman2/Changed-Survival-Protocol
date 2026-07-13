@@ -24,7 +24,7 @@ public class LatexHeartBlock extends Block implements EntityBlock {
     private final Kind kind;
 
     public LatexHeartBlock(Kind kind, Properties properties) {
-        super(properties.randomTicks());
+        super(properties);
         this.kind = kind;
         registerDefaultState(stateDefinition.any().setValue(PROTECTED, false));
     }

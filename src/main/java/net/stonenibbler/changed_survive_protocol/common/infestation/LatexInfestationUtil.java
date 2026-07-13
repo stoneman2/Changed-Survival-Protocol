@@ -4,7 +4,9 @@ import net.minecraft.util.RandomSource;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 final class LatexInfestationUtil {
     private LatexInfestationUtil() {
@@ -52,10 +54,21 @@ final class LatexInfestationUtil {
         }
 
         int sampleSize = Math.min(limit, values.size());
-        List<T> sample = new ArrayList<>(sampleSize);
-        for (int i = 0; i < sampleSize; i++) {
-            sample.add(values.get(random.nextInt(values.size())));
+        if (sampleSize == values.size()) {
+            List<T> sample = new ArrayList<>(values);
+            shuffle(sample, random);
+            return sample;
         }
+
+        Set<Integer> selected = new HashSet<>(sampleSize);
+        List<T> sample = new ArrayList<>(sampleSize);
+        for (int i = values.size() - sampleSize; i < values.size(); i++) {
+            int candidate = random.nextInt(i + 1);
+            int selectedIndex = selected.add(candidate) ? candidate : i;
+            selected.add(selectedIndex);
+            sample.add(values.get(selectedIndex));
+        }
+        shuffle(sample, random);
         return sample;
     }
 }

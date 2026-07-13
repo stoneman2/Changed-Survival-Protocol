@@ -49,6 +49,9 @@ final class LatexCoverRules {
     }
 
     static void clearSoftHeartTarget(ServerLevel level, BlockPos pos) {
+        if (!level.isLoaded(pos)) {
+            return;
+        }
         BlockState state = level.getBlockState(pos);
         if (isReplaceableFoliage(state)) {
             removeFoliage(level, pos, state);
@@ -108,6 +111,9 @@ final class LatexCoverRules {
     }
 
     static LatexCoverState coverStateFor(ServerLevel level, BlockPos pos, LatexHeartBlock.Kind kind) {
+        if (!level.isLoaded(pos)) {
+            return ChangedLatexTypes.NONE.get().defaultCoverState();
+        }
         LatexCoverState current = LatexCoverState.getAt(level, pos);
         SpreadingLatexType latex = LatexInfestationBlocks.latexState(kind);
         LatexCoverState state = current.is(latex) ? current : latex.defaultCoverState();
@@ -115,6 +121,9 @@ final class LatexCoverRules {
 
         for (Direction direction : Direction.values()) {
             BlockPos surfacePos = pos.relative(direction);
+            if (!level.isLoaded(surfacePos)) {
+                continue;
+            }
             BlockState surfaceState = level.getBlockState(surfacePos);
             boolean canCoverFace = isSpreadableSurface(level, surfacePos, surfaceState, direction.getOpposite())
                     && !sourceState.isFaceSturdy(level, pos, direction, SupportType.FULL);
@@ -129,7 +138,7 @@ final class LatexCoverRules {
     }
 
     static boolean isOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, BlockPos pos) {
-        if (!data.claimedBy(pos).filter(heart.id()::equals).isPresent()) {
+        if (!level.isLoaded(pos) || !data.claimedBy(pos).filter(heart.id()::equals).isPresent()) {
             return false;
         }
 
@@ -143,6 +152,9 @@ final class LatexCoverRules {
     }
 
     static boolean isCompleteCover(ServerLevel level, BlockPos pos, LatexHeartBlock.Kind kind) {
+        if (!level.isLoaded(pos)) {
+            return false;
+        }
         LatexCoverState current = LatexCoverState.getAt(level, pos);
         return current.is(LatexInfestationBlocks.latexState(kind))
                 && sameCoverFaces(current, coverStateFor(level, pos, kind));
@@ -174,7 +186,7 @@ final class LatexCoverRules {
     static BlockPos randomOwnedCover(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
         List<BlockPos> claims = LatexInfestationUtil.randomSample(data.claimPositionList(heart.id()), 16, level.random);
         for (BlockPos pos : claims) {
-            if (isOwnedCover(level, data, heart, pos)) {
+            if (level.isLoaded(pos) && isOwnedCover(level, data, heart, pos)) {
                 return pos;
             }
         }
@@ -206,8 +218,7 @@ final class LatexCoverRules {
         if (state.getProperties().contains(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
             DoubleBlockHalf half = state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF);
             BlockPos otherHalf = half == DoubleBlockHalf.UPPER ? pos.below() : pos.above();
-            BlockState otherState = level.getBlockState(otherHalf);
-            if (otherState.is(state.getBlock())) {
+            if (level.isLoaded(otherHalf) && level.getBlockState(otherHalf).is(state.getBlock())) {
                 level.setBlockAndUpdate(otherHalf, Blocks.AIR.defaultBlockState());
             }
         }
@@ -223,6 +234,9 @@ final class LatexCoverRules {
     }
 
     private static boolean isSolidGround(ServerLevel level, BlockPos pos) {
+        if (!level.isLoaded(pos)) {
+            return false;
+        }
         BlockState state = level.getBlockState(pos);
         return !state.isAir() && (state.isFaceSturdy(level, pos, Direction.UP) || state.is(Blocks.DIRT_PATH));
     }
@@ -264,7 +278,7 @@ final class LatexCoverRules {
     static void normalizeSupport(ServerLevel level, BlockPos pos) {
         for (Direction direction : Direction.values()) {
             BlockPos supportPos = pos.relative(direction);
-            if (level.getBlockState(supportPos).is(Blocks.DIRT_PATH)) {
+            if (level.isLoaded(supportPos) && level.getBlockState(supportPos).is(Blocks.DIRT_PATH)) {
                 level.setBlockAndUpdate(supportPos, Blocks.DIRT.defaultBlockState());
             }
         }

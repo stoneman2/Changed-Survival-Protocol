@@ -11,14 +11,18 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.level.ExplosionEvent;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.stonenibbler.changed_survive_protocol.ChangedSurviveProtocol;
 import net.stonenibbler.changed_survive_protocol.common.config.CSPConfig;
 import net.stonenibbler.changed_survive_protocol.common.gamerule.CSPGameRules;
@@ -116,6 +120,9 @@ public final class LatexInfestationManager {
             return false;
         }
 
+        if (!level.isLoaded(supportPos)) {
+            return false;
+        }
         if (forceSupport && !level.getBlockState(supportPos).isFaceSturdy(level, supportPos, Direction.UP)) {
             level.setBlockAndUpdate(supportPos, LatexInfestationBlocks.sourceBlock(kind).defaultBlockState());
             LatexCoverState.setAtAndUpdate(level, supportPos, ChangedLatexTypes.NONE.get().defaultCoverState());
@@ -169,8 +176,16 @@ public final class LatexInfestationManager {
     }
 
     public static void onEntityLeaveLevel(EntityLeaveLevelEvent event) {
-        if (event.getLevel() instanceof ServerLevel level) {
+        Entity.RemovalReason reason = event.getEntity().getRemovalReason();
+        if (event.getLevel() instanceof ServerLevel level && reason != null
+                && (reason.shouldDestroy() || reason == Entity.RemovalReason.CHANGED_DIMENSION)) {
             LatexInfestationSavedData.get(level).removeMob(event.getEntity().getUUID());
+        }
+    }
+
+    public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            LatexHeartMobSpawner.reconcileTrackedMob(LatexInfestationSavedData.get(level), event.getEntity());
         }
     }
 
@@ -226,6 +241,9 @@ public final class LatexInfestationManager {
     }
 
     public static void onLatexCoverChanged(ServerLevel level, BlockPos pos, LatexCoverState oldState, LatexCoverState newState) {
+        if (!level.isLoaded(pos)) {
+            return;
+        }
         if (newState.isAir() || removedManagedCoverFace(level, pos, oldState, newState)) {
             onLatexCoverRemoved(level, pos);
         }
@@ -267,6 +285,9 @@ public final class LatexInfestationManager {
         LatexInfestationSavedData data = LatexInfestationSavedData.get(level);
         for (BlockPos pos : BlockPos.betweenClosed(changedPos.offset(-1, -1, -1), changedPos.offset(1, 1, 1))) {
             BlockPos immutable = pos.immutable();
+            if (!level.isLoaded(immutable)) {
+                continue;
+            }
             Optional<LatexInfestationSavedData.HeartRecord> heart = data.claimedBy(immutable).flatMap(data::heart);
             if (heart.isPresent() && !shouldKeepClaim(level, data, heart.get(), immutable)) {
                 data.unclaim(immutable);
@@ -277,6 +298,9 @@ public final class LatexInfestationManager {
 
     private static boolean shouldKeepClaim(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, BlockPos pos) {
         if (pos.equals(heart.pos())) {
+            return true;
+        }
+        if (!level.isLoaded(pos)) {
             return true;
         }
 
@@ -324,6 +348,10 @@ public final class LatexInfestationManager {
 
     public static void onNeighborNotify(BlockEvent.NeighborNotifyEvent event) {
         if (event.getLevel() instanceof ServerLevel level) {
+            LatexInfestationSavedData data = LatexInfestationSavedData.get(level);
+            if (!data.hasClaimedChunkNear(event.getPos(), 2)) {
+                return;
+            }
             LatexCoverRules.wakeNearbyCover(level, event.getPos());
             cleanupStaleClaimsNear(level, event.getPos());
         }
@@ -331,6 +359,16 @@ public final class LatexInfestationManager {
 
     public static void onChunkLoad(ChunkEvent.Load event) {
         LatexHeartSeeder.onChunkLoad(event);
+    }
+
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            LatexHeartSeeder.onLevelUnload(level);
+        }
+    }
+
+    public static void onServerStopped(ServerStoppedEvent event) {
+        LatexHeartSeeder.onServerStopped();
     }
 
     public static void onLevelTick(TickEvent.LevelTickEvent event) {
@@ -351,6 +389,7 @@ public final class LatexInfestationManager {
         long gameTime = level.getGameTime();
         int growthsRemaining = MAX_HEART_GROWTHS_PER_LEVEL_TICK;
         int cleanupsRemaining = MAX_HEART_CLEANUPS_PER_LEVEL_TICK;
+        boolean infestationsEnabled = level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS);
         List<LatexInfestationSavedData.HeartRecord> activeHearts = data.activeHearts();
         int heartCount = activeHearts.size();
         int startIndex = heartCount == 0 ? 0 : (int)Math.floorMod(gameTime, (long)heartCount);
@@ -362,6 +401,9 @@ public final class LatexInfestationManager {
                 }
                 if (!(level.getBlockState(heart.pos()).getBlock() instanceof LatexHeartBlock)) {
                     data.removeHeart(heart.id());
+                    continue;
+                }
+                if (!infestationsEnabled) {
                     continue;
                 }
 

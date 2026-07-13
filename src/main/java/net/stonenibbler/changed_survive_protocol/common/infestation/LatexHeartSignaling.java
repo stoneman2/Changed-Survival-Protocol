@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.stonenibbler.changed_survive_protocol.common.gamerule.CSPGameRules;
 
 import java.util.List;
 
@@ -21,7 +22,8 @@ final class LatexHeartSignaling {
     }
 
     static void tick(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, long gameTime) {
-        if (Math.floorMod(gameTime + heart.id().getLeastSignificantBits(), PASSIVE_INTERVAL) != 0) {
+        if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)
+                || Math.floorMod(gameTime + heart.id().getLeastSignificantBits(), PASSIVE_INTERVAL) != 0) {
             return;
         }
         if (!hasNearbyPlayer(level, heart.pos())) {
@@ -38,6 +40,9 @@ final class LatexHeartSignaling {
     }
 
     static void protectedBreakFeedback(ServerLevel level, Player player, LatexInfestationSavedData.HeartRecord heart, List<BlockPos> nodes) {
+        if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)) {
+            return;
+        }
         player.displayClientMessage(Component.translatable("message.changed_survive_protocol.latex_heart.protected", nodes.size()), true);
         if (!nodes.isEmpty()) {
             nodeLocator(level, heart, nearestNodeTo(heart.pos(), nodes), true);
@@ -45,6 +50,9 @@ final class LatexHeartSignaling {
     }
 
     static void vulnerableFeedback(ServerLevel level, LatexInfestationSavedData.HeartRecord heart) {
+        if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)) {
+            return;
+        }
         vulnerableBurst(level, heart, true);
         for (ServerPlayer player : level.players()) {
             if (canReceiveSignal(player, heart.pos())) {
@@ -139,7 +147,7 @@ final class LatexHeartSignaling {
 
     private static boolean isOpen(ServerLevel level, Vec3 pos) {
         BlockPos blockPos = BlockPos.containing(pos.x, pos.y, pos.z);
-        return level.getBlockState(blockPos).getCollisionShape(level, blockPos).isEmpty();
+        return level.isLoaded(blockPos) && level.getBlockState(blockPos).getCollisionShape(level, blockPos).isEmpty();
     }
 
     private static void vulnerableBurst(ServerLevel level, LatexInfestationSavedData.HeartRecord heart, boolean strong) {

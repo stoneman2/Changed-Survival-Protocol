@@ -40,7 +40,9 @@ final class LatexHeartDecorations {
     }
 
     static void maybeDecorate(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, int claimCount) {
-        if (!level.getGameRules().getBoolean(CSPGameRules.LATEX_HEART_SPECIAL_BLOCKS) || claimCount < MIN_DECORATION_CLAIMS) {
+        if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)
+                || !level.getGameRules().getBoolean(CSPGameRules.LATEX_HEART_SPECIAL_BLOCKS)
+                || claimCount < MIN_DECORATION_CLAIMS) {
             return;
         }
 
@@ -101,6 +103,9 @@ final class LatexHeartDecorations {
     }
 
     static boolean canPlaceDecorationAt(ServerLevel level, BlockPos pos) {
+        if (!level.isLoaded(pos)) {
+            return false;
+        }
         AABB box = new AABB(pos);
         return level.getEntities((Entity)null, box, entity -> entity instanceof LivingEntity && entity.isAlive() && !entity.isSpectator() && entity.getBoundingBox().intersects(box)).isEmpty();
     }
@@ -128,7 +133,7 @@ final class LatexHeartDecorations {
         }
         List<BlockSnapshot> before = snapshotDecorationArea(level, pos);
         Block block = heart.kind() == LatexHeartBlock.Kind.DARK ? chooseDarkCrystal(level) : ChangedBlocks.WHITE_LATEX_PILLAR.get();
-        if (needsHeadroom(block) && (!level.getBlockState(pos.above()).isAir() || !canPlaceDecorationAt(level, pos.above()))) {
+        if (needsHeadroom(block) && (!level.isLoaded(pos.above()) || !level.getBlockState(pos.above()).isAir() || !canPlaceDecorationAt(level, pos.above()))) {
             return false;
         }
         LatexCoverState.setAtAndUpdate(level, pos, LatexInfestationBlocks.floorCover(heart.kind()));
@@ -160,6 +165,9 @@ final class LatexHeartDecorations {
         List<BlockSnapshot> blocks = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-1, -1, -1), origin.offset(1, 2, 1))) {
             BlockPos immutable = pos.immutable();
+            if (!level.isLoaded(immutable)) {
+                continue;
+            }
             blocks.add(new BlockSnapshot(immutable, level.getBlockState(immutable).getBlock()));
         }
         return blocks;
@@ -167,6 +175,9 @@ final class LatexHeartDecorations {
 
     private static void trackPlacedDecorationBlocks(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, List<BlockSnapshot> before) {
         for (BlockSnapshot snapshot : before) {
+            if (!level.isLoaded(snapshot.pos())) {
+                continue;
+            }
             BlockState state = level.getBlockState(snapshot.pos());
             if (!state.isAir() && state.getBlock() != snapshot.block()) {
                 data.addDecoration(snapshot.pos(), heart.id(), state.getBlock());

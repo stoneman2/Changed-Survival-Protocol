@@ -33,6 +33,9 @@ final class LatexHeartNodes {
     }
 
     static void maybePlaceNode(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart, int claimCount) {
+        if (!level.getGameRules().getBoolean(CSPGameRules.DO_LATEX_HEART_INFESTATIONS)) {
+            return;
+        }
         int maxNodes = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MAX_NODES);
         int maxDistance = level.getGameRules().getInt(CSPGameRules.LATEX_HEART_MAX_NODE_DISTANCE);
         double maxDistanceSqr = maxDistance <= 0 ? Double.MAX_VALUE : (double)maxDistance * maxDistance;
@@ -54,15 +57,16 @@ final class LatexHeartNodes {
     }
 
     static List<BlockPos> activeNodes(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
+        // Keep unloaded recorded nodes authoritative until their chunk can be checked.
         return data.nodePositions(heart.id()).stream()
-                .filter(pos -> level.getBlockState(pos).getBlock() instanceof LatexNodeBlock)
+                .filter(pos -> !level.isLoaded(pos) || level.getBlockState(pos).getBlock() instanceof LatexNodeBlock)
                 .sorted(Comparator.comparingDouble(pos -> pos.distSqr(heart.pos())))
                 .toList();
     }
 
     static boolean hasActiveNodes(ServerLevel level, LatexInfestationSavedData data, LatexInfestationSavedData.HeartRecord heart) {
         for (BlockPos pos : data.nodePositions(heart.id())) {
-            if (level.getBlockState(pos).getBlock() instanceof LatexNodeBlock) {
+            if (!level.isLoaded(pos) || level.getBlockState(pos).getBlock() instanceof LatexNodeBlock) {
                 return true;
             }
         }

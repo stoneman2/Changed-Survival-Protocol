@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -40,8 +41,9 @@ public class LatexInfestationSavedData extends SavedData {
     private final Map<UUID, UUID> mobs = new HashMap<>();
     private final Map<UUID, Set<UUID>> mobsByHeart = new HashMap<>();
     private final Set<BlockPos> exhaustedCover = new HashSet<>();
-    private final Set<ChunkPos> generatedChunks = new HashSet<>();
     private final Map<BlockPos, Long> playerSecretions = new HashMap<>();
+    private final List<BlockPos> playerSecretionPositions = new ArrayList<>();
+    private final Map<Long, Integer> claimedChunkCounts = new HashMap<>();
 
     public static LatexInfestationSavedData get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(LatexInfestationSavedData::load, LatexInfestationSavedData::new, NAME);
@@ -103,18 +105,12 @@ public class LatexInfestationSavedData extends SavedData {
             data.claimedBy(pos).ifPresent(heart -> removeFromIndex(data.activeClaimsByHeart, data.activeClaimListsByHeart, heart, pos));
         }
 
-        ListTag chunkTag = tag.getList("generatedChunks", net.minecraft.nbt.Tag.TAG_COMPOUND);
-        for (int i = 0; i < chunkTag.size(); i++) {
-            CompoundTag generated = chunkTag.getCompound(i);
-            data.generatedChunks.add(new ChunkPos(generated.getInt("x"), generated.getInt("z")));
-        }
-
         ListTag secretionsTag = tag.getList("playerSecretions", net.minecraft.nbt.Tag.TAG_COMPOUND);
         for (int i = 0; i < secretionsTag.size(); i++) {
             CompoundTag secretion = secretionsTag.getCompound(i);
             BlockPos pos = BlockPos.of(secretion.getLong("pos"));
             if (!data.claims.containsKey(pos)) {
-                data.playerSecretions.put(pos, secretion.getLong("decayTick"));
+                data.putPlayerSecretion(pos, secretion.getLong("decayTick"));
             }
         }
 
@@ -185,15 +181,6 @@ public class LatexInfestationSavedData extends SavedData {
         });
         tag.put("exhaustedCover", exhaustedTag);
 
-        ListTag chunkTag = new ListTag();
-        generatedChunks.forEach(pos -> {
-            CompoundTag generated = new CompoundTag();
-            generated.putInt("x", pos.x);
-            generated.putInt("z", pos.z);
-            chunkTag.add(generated);
-        });
-        tag.put("generatedChunks", chunkTag);
-
         ListTag secretionsTag = new ListTag();
         playerSecretions.forEach((pos, decayTick) -> {
             CompoundTag secretion = new CompoundTag();
@@ -224,7 +211,17 @@ public class LatexInfestationSavedData extends SavedData {
     }
 
     public Optional<HeartRecord> heartAt(BlockPos pos) {
-        return hearts.values().stream().filter(heart -> heart.pos().equals(pos)).findFirst();
+        HeartRecord deadHeart = null;
+        for (HeartRecord heart : hearts.values()) {
+            if (!heart.pos().equals(pos)) {
+                continue;
+            }
+            if (heart.alive()) {
+                return Optional.of(heart);
+            }
+            deadHeart = heart;
+        }
+        return Optional.ofNullable(deadHeart);
     }
 
     public Optional<HeartRecord> heart(UUID id) {
@@ -233,16 +230,16 @@ public class LatexInfestationSavedData extends SavedData {
 
     public HeartRecord addHeart(BlockPos pos, LatexHeartBlock.Kind kind) {
         HeartRecord existing = heartAt(pos).orElse(null);
-        if (existing != null) {
-            if (existing.alive()) {
-                return existing;
-            }
-            hearts.remove(existing.id());
+        if (existing != null && existing.alive()) {
+            return existing;
         }
 
-        HeartRecord heart = new HeartRecord(UUID.randomUUID(), pos.immutable(), kind, true, 0L, 0L, 0L, 0L);
+        HeartRecord heart = new HeartRecord(UUID.randomUUID(), pos.immutable(), kind, true, 0L, 0L, 0L, 0L, 0);
         hearts.put(heart.id(), heart);
         claim(pos, heart.id());
+        if (existing != null) {
+            forgetDeadHeartIfUnclaimed(existing.id());
+        }
         setDirty();
         return heart;
     }
@@ -275,13 +272,18 @@ public class LatexInfestationSavedData extends SavedData {
     private void putClaim(BlockPos pos, UUID heart) {
         BlockPos immutable = pos.immutable();
         UUID oldHeart = claims.put(immutable, heart);
+        if (oldHeart == null) {
+            claimedChunkCounts.merge(new ChunkPos(immutable).toLong(), 1, Integer::sum);
+        }
         if (oldHeart != null && !oldHeart.equals(heart)) {
             removeFromIndex(claimsByHeart, claimListsByHeart, oldHeart, immutable);
             removeFromIndex(activeClaimsByHeart, activeClaimListsByHeart, oldHeart, immutable);
         }
         addToIndex(claimsByHeart, claimListsByHeart, heart, immutable);
         exhaustedCover.remove(immutable);
-        playerSecretions.remove(immutable);
+        if (playerSecretions.remove(immutable) != null) {
+            playerSecretionPositions.remove(immutable);
+        }
         addToIndex(activeClaimsByHeart, activeClaimListsByHeart, heart, immutable);
     }
 
@@ -337,6 +339,8 @@ public class LatexInfestationSavedData extends SavedData {
     public void unclaim(BlockPos pos) {
         UUID heart = claims.remove(pos);
         if (heart != null) {
+            long chunk = new ChunkPos(pos).toLong();
+            claimedChunkCounts.computeIfPresent(chunk, (ignored, count) -> count > 1 ? count - 1 : null);
             removeFromIndexedList(claimsByHeart, claimListsByHeart, heart, pos);
             removeFromIndex(activeClaimsByHeart, activeClaimListsByHeart, heart, pos);
             forgetDeadHeartIfUnclaimed(heart);
@@ -359,8 +363,26 @@ public class LatexInfestationSavedData extends SavedData {
         activeClaimListsByHeart.remove(id);
         nodesByHeart.remove(id);
         decorationsByHeart.remove(id);
-        mobsByHeart.remove(id);
+        Set<UUID> heartMobs = mobsByHeart.remove(id);
+        if (heartMobs != null) {
+            heartMobs.forEach(mobs::remove);
+        }
         setDirty();
+    }
+
+    public boolean hasClaimedChunkNear(BlockPos pos, int blockRadius) {
+        int minChunkX = (pos.getX() - blockRadius) >> 4;
+        int maxChunkX = (pos.getX() + blockRadius) >> 4;
+        int minChunkZ = (pos.getZ() - blockRadius) >> 4;
+        int maxChunkZ = (pos.getZ() + blockRadius) >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                if (claimedChunkCounts.containsKey(ChunkPos.asLong(chunkX, chunkZ))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public boolean isCoverExhausted(BlockPos pos) {
@@ -524,6 +546,9 @@ public class LatexInfestationSavedData extends SavedData {
     }
 
     public void addMob(UUID mob, UUID heart) {
+        if (heart.equals(mobs.get(mob))) {
+            return;
+        }
         putMob(mob, heart);
         setDirty();
     }
@@ -548,23 +573,28 @@ public class LatexInfestationSavedData extends SavedData {
         return mobsByHeart.getOrDefault(heart, Collections.emptySet()).size();
     }
 
+    public Optional<UUID> mobOwner(UUID mob) {
+        return Optional.ofNullable(mobs.get(mob));
+    }
+
     public List<UUID> mobsFor(UUID heart) {
         return new ArrayList<>(mobsByHeart.getOrDefault(heart, Collections.emptySet()));
     }
 
-    public boolean markChunkGenerated(ChunkPos pos) {
-        boolean added = generatedChunks.add(pos);
-        if (added) {
-            setDirty();
-        }
-        return added;
-    }
-
     public void addPlayerSecretion(BlockPos pos, long decayTick) {
-        Long oldDecayTick = playerSecretions.put(pos.immutable(), decayTick);
+        Long oldDecayTick = putPlayerSecretion(pos, decayTick);
         if (oldDecayTick == null || oldDecayTick != decayTick) {
             setDirty();
         }
+    }
+
+    private Long putPlayerSecretion(BlockPos pos, long decayTick) {
+        BlockPos immutable = pos.immutable();
+        Long oldDecayTick = playerSecretions.put(immutable, decayTick);
+        if (oldDecayTick == null) {
+            playerSecretionPositions.add(immutable);
+        }
+        return oldDecayTick;
     }
 
     public boolean isPlayerSecretion(BlockPos pos) {
@@ -573,13 +603,15 @@ public class LatexInfestationSavedData extends SavedData {
 
     public void removePlayerSecretion(BlockPos pos) {
         if (playerSecretions.remove(pos) != null) {
+            playerSecretionPositions.remove(pos);
             setDirty();
         }
     }
 
-    public List<PlayerSecretionRecord> playerSecretions() {
-        return playerSecretions.entrySet().stream()
-                .map(entry -> new PlayerSecretionRecord(entry.getKey(), entry.getValue()))
+    public List<PlayerSecretionRecord> playerSecretions(int limit, RandomSource random) {
+        return LatexInfestationUtil.randomSample(playerSecretionPositions, limit, random).stream()
+                .filter(playerSecretions::containsKey)
+                .map(pos -> new PlayerSecretionRecord(pos, playerSecretions.get(pos)))
                 .toList();
     }
 
@@ -625,25 +657,29 @@ public class LatexInfestationSavedData extends SavedData {
         }
     }
 
-    public record HeartRecord(UUID id, BlockPos pos, LatexHeartBlock.Kind kind, boolean alive, long nextGrowthTick, long nextDecayTick, long nextMobTick, long nextNodeTick) {
+    public record HeartRecord(UUID id, BlockPos pos, LatexHeartBlock.Kind kind, boolean alive, long nextGrowthTick, long nextDecayTick, long nextMobTick, long nextNodeTick, int decayCursor) {
         public HeartRecord withAlive(boolean alive) {
-            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, nextMobTick, nextNodeTick);
+            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, nextMobTick, nextNodeTick, decayCursor);
         }
 
         public HeartRecord withNextGrowthTick(long tick) {
-            return new HeartRecord(id, pos, kind, alive, tick, nextDecayTick, nextMobTick, nextNodeTick);
+            return new HeartRecord(id, pos, kind, alive, tick, nextDecayTick, nextMobTick, nextNodeTick, decayCursor);
         }
 
         public HeartRecord withNextDecayTick(long tick) {
-            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, tick, nextMobTick, nextNodeTick);
+            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, tick, nextMobTick, nextNodeTick, decayCursor);
         }
 
         public HeartRecord withNextMobTick(long tick) {
-            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, tick, nextNodeTick);
+            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, tick, nextNodeTick, decayCursor);
         }
 
         public HeartRecord withNextNodeTick(long tick) {
-            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, nextMobTick, tick);
+            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, nextMobTick, tick, decayCursor);
+        }
+
+        public HeartRecord withDecayCursor(int cursor) {
+            return new HeartRecord(id, pos, kind, alive, nextGrowthTick, nextDecayTick, nextMobTick, nextNodeTick, cursor);
         }
 
         private CompoundTag save() {
@@ -656,12 +692,13 @@ public class LatexInfestationSavedData extends SavedData {
             tag.putLong("nextDecayTick", nextDecayTick);
             tag.putLong("nextMobTick", nextMobTick);
             tag.putLong("nextNodeTick", nextNodeTick);
+            tag.putInt("decayCursor", decayCursor);
             return tag;
         }
 
         private static HeartRecord load(CompoundTag tag) {
             LatexHeartBlock.Kind kind = "DARK".equals(tag.getString("kind")) ? LatexHeartBlock.Kind.DARK : LatexHeartBlock.Kind.WHITE;
-            return new HeartRecord(tag.getUUID("id"), BlockPos.of(tag.getLong("pos")), kind, tag.getBoolean("alive"), tag.getLong("nextGrowthTick"), tag.getLong("nextDecayTick"), tag.getLong("nextMobTick"), tag.getLong("nextNodeTick"));
+            return new HeartRecord(tag.getUUID("id"), BlockPos.of(tag.getLong("pos")), kind, tag.getBoolean("alive"), tag.getLong("nextGrowthTick"), tag.getLong("nextDecayTick"), tag.getLong("nextMobTick"), tag.getLong("nextNodeTick"), tag.getInt("decayCursor"));
         }
     }
 
