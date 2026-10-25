@@ -111,7 +111,11 @@ public final class CSPTransfurEvents {
             return;
         }
 
-        addExposure(player, event.getTransfurVariant().getFormId().toString(), CSPConfig.COMMON.immediateHazardCoverage.get());
+        TransfurVariant<?> variant = event.getTransfurVariant();
+        String strainId = variant == null
+                ? resolveVariant("").getFormId().toString() // fallback variant form ID
+                : variant.getFormId().toString();
+        addExposure(player, strainId, CSPConfig.COMMON.immediateHazardCoverage.get());
         event.setCanceled(true);
     }
 
